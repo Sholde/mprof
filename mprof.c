@@ -17,6 +17,8 @@ static unsigned long long __count_send = 0;
 static unsigned long long __count_recv = 0;
 static unsigned long long __count_send_local = 0;
 static unsigned long long __count_recv_local = 0;
+static double __max_time_wait_send = 0;
+static double __max_time_wait_recv = 0;
 
 int (*real_MPI_Send)(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm) = NULL;
 int (*real_MPI_Recv)(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status) = NULL;
@@ -25,6 +27,7 @@ int (*real_MPI_Recv)(void *buf, int count, MPI_Datatype datatype, int source, in
 static unsigned long long __count_process_hit_barrier = 0;
 static unsigned long long __count_barrier_local = 0;
 static unsigned long long __count_barrier = 0;
+static double __max_time_wait_barrier = 0;
 
 int (*real_MPI_Barrier)(MPI_Comm comm) = NULL;
 
@@ -156,8 +159,31 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
   //
   __list_of_process_send_to[dest] = 1;
   
+
+  //
+  double start, end;
+
+  //
+  start = MPI_Wtime();
+  
   // Call MPI_Send
-  return real_MPI_Send(buf, count, datatype, dest, tag, comm);
+  int ret = real_MPI_Send(buf, count, datatype, dest, tag, comm);
+
+  end = MPI_Wtime();
+
+  //
+  double elapsed = end - start;
+
+  //
+  if (elapsed > 0.0)
+    {
+      if (elapsed > __max_time_wait_send)
+        {
+          __max_time_wait_send = elapsed;
+        }
+    }
+  
+  return ret;
 }
 
 int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status)
@@ -168,8 +194,30 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
   //
   __list_of_process_recv_from[source] = 1;
 
+  //
+  double start, end;
+
+  //
+  start = MPI_Wtime();
+
   // Call MPI_Recv
-  return real_MPI_Recv(buf, count, datatype, source, tag, comm, status);
+  int ret = real_MPI_Recv(buf, count, datatype, source, tag, comm, status);
+
+  end = MPI_Wtime();
+
+  //
+  double elapsed = end - start;
+
+  //
+  if (elapsed > 0.0)
+    {
+      if (elapsed > __max_time_wait_recv)
+        {
+          __max_time_wait_recv = elapsed;
+        }
+    }
+  
+  return ret;
 }
 
 int MPI_Barrier(MPI_Comm comm)
@@ -198,8 +246,30 @@ int MPI_Barrier(MPI_Comm comm)
   //
   __count_barrier_local++;
   
+  //
+  double start, end;
+
+  //
+  start = MPI_Wtime();
+
   // Call true MPI_Barrier
-  return real_MPI_Barrier(comm);
+  int ret = real_MPI_Barrier(comm);
+
+  end = MPI_Wtime();
+
+  //
+  double elapsed = end - start;
+
+  //
+  if (elapsed > 0.0)
+    {
+      if (elapsed > __max_time_wait_barrier)
+        {
+          __max_time_wait_barrier = elapsed;
+        }
+    }
+  
+  return ret;
 }
 
 int MPI_Finalize(void)
@@ -250,7 +320,7 @@ int MPI_Finalize(void)
           if (__count_send_local)
             {
               //
-              fprintf(stderr, " [");
+              fprintf(stderr, " to [");
 
               //
               for (int j = 0; j < __real_size; j++)
@@ -261,9 +331,10 @@ int MPI_Finalize(void)
 
               //
               fprintf(stderr, " ]");
-            }
 
-          fprintf(stderr, "\n");
+              //
+              fprintf(stderr, " (max: %f sec)\n", __max_time_wait_send);
+            }
       
           // Recv
           fprintf(stderr, "\t" "%lld message recv", __count_recv_local);
@@ -271,7 +342,7 @@ int MPI_Finalize(void)
           if (__count_recv_local)
             {
               //
-              fprintf(stderr, " [");
+              fprintf(stderr, " from [");
 
               //
               for (int j = 0; j < __real_size; j++)
@@ -282,12 +353,13 @@ int MPI_Finalize(void)
 
               //
               fprintf(stderr, " ]");
+
+              //
+              fprintf(stderr, " (max: %f sec)\n", __max_time_wait_recv);
             }
-          
-          fprintf(stderr, "\n");
       
           // Barrier
-          fprintf(stderr, "\t" "%lld barrier passed\n", __count_barrier_local);
+          fprintf(stderr, "\t" "%lld barrier passed (max: %f sec)\n", __count_barrier_local, __max_time_wait_barrier);
 
           //
           fprintf(stderr, "\n");
