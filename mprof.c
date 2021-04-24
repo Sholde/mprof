@@ -5,6 +5,10 @@
 #include <dlfcn.h>
 #include <mpi.h>
 
+#include <locale.h>
+
+#define MPROF "==mprof== "
+
 //
 static int __real_size = -1;
 static int __real_rank = -1;
@@ -17,8 +21,14 @@ static unsigned long long __count_send = 0;
 static unsigned long long __count_recv = 0;
 static unsigned long long __count_send_local = 0;
 static unsigned long long __count_recv_local = 0;
-static double __max_time_wait_send = 0;
-static double __max_time_wait_recv = 0;
+
+static double __max_time_wait_send = 0.0;
+static double __total_time_wait_send = 0.0;
+static double __max_time_wait_recv = 0.0;
+static double __total_time_wait_recv = 0.0;
+
+static double __global_time_send = 0.0;
+static double __global_time_recv = 0.0;
 
 int (*real_MPI_Send)(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm) = NULL;
 int (*real_MPI_Recv)(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status) = NULL;
@@ -27,7 +37,11 @@ int (*real_MPI_Recv)(void *buf, int count, MPI_Datatype datatype, int source, in
 static unsigned long long __count_process_hit_barrier = 0;
 static unsigned long long __count_barrier_local = 0;
 static unsigned long long __count_barrier = 0;
-static double __max_time_wait_barrier = 0;
+
+static double __max_time_wait_barrier = 0.0;
+static double __total_time_wait_barrier = 0.0;
+
+static double __global_time_barrier = 0.0;
 
 int (*real_MPI_Barrier)(MPI_Comm comm) = NULL;
 
@@ -181,6 +195,8 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
         {
           __max_time_wait_send = elapsed;
         }
+
+      __total_time_wait_send += elapsed;
     }
   
   return ret;
@@ -215,6 +231,8 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
         {
           __max_time_wait_recv = elapsed;
         }
+
+      __total_time_wait_recv += elapsed;
     }
   
   return ret;
@@ -267,22 +285,50 @@ int MPI_Barrier(MPI_Comm comm)
         {
           __max_time_wait_barrier = elapsed;
         }
+
+      __total_time_wait_barrier += elapsed;
     }
   
   return ret;
 }
 
+//
+static void fprintf_bignumber(unsigned long long n)
+{
+  if (n < 1000)
+    {
+      fprintf(stderr, "%lld", n);
+      return;
+    }
+  
+  fprintf_bignumber(n / 1000);
+  fprintf(stderr, ",%03lld", n % 1000);
+}
+
 int MPI_Finalize(void)
 {
   //
-  unsigned long long buff_send = __count_send_local;
-  unsigned long long buff_recv = __count_recv_local;
-  unsigned long long buff_barrier = __count_barrier_local;
+  unsigned long long buff_count_send = __count_send_local;
+  unsigned long long buff_count_recv = __count_recv_local;
+  unsigned long long buff_count_barrier = __count_barrier_local;
+
+  //
+  MPI_Reduce(&buff_count_send, &__count_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_count_recv, &__count_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_count_barrier, &__count_barrier, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  //
+  double buff_time_send = __total_time_wait_send;
+  double buff_time_recv = __total_time_wait_recv;
+  double buff_time_barrier = __total_time_wait_barrier;
   
   //
-  MPI_Reduce(&buff_send, &__count_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&buff_recv, &__count_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&buff_barrier, &__count_barrier, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_send, &__global_time_send, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_recv, &__global_time_recv, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_barrier, &__global_time_barrier, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  //
+  setlocale(LC_ALL, "en_GB");
 
   if (__real_rank == 0)
     {
@@ -292,19 +338,25 @@ int MPI_Finalize(void)
       fprintf(stderr, "===============================================================================\n");
 
       //
-      fprintf(stderr, "GLOBAL SUMMARY:\n");
+      fprintf(stderr, MPROF "GLOBAL SUMMARY:\n");
 
       // Send
-      fprintf(stderr, "\t" "%lld message send\n", __count_send);
-      
-      //Recv
-      fprintf(stderr, "\t" "%lld message recv\n", __count_recv);
-      
-      // Barrier
-      fprintf(stderr, "\t" "%lld barrier passed\n", __count_barrier);
+      fprintf(stderr, MPROF "         message sent: ");
+      fprintf_bignumber(__count_send);
+      fprintf(stderr, " - waiting %f sec in total\n", __global_time_send);
+
+      // Send
+      fprintf(stderr, MPROF "         message recv: ");
+      fprintf_bignumber(__count_recv);
+      fprintf(stderr, " - waiting %f sec in total\n", __global_time_recv);
+
+      // Send
+      fprintf(stderr, MPROF "    barrier(s) passed: ");
+      fprintf_bignumber(__count_barrier);
+      fprintf(stderr, " - waiting %f sec in total\n", __global_time_barrier);
 
       //
-      fprintf(stderr, "\n");
+      fprintf(stderr, MPROF "\n");
     }
 
   for (int i = 0; i < __real_size; i++)
@@ -312,58 +364,61 @@ int MPI_Finalize(void)
       if (i == __real_rank)
         {
           //
-          fprintf(stderr, "LOCAL SUMMARY (Process %d):\n", __real_rank);
+          fprintf(stderr, MPROF "LOCAL SUMMARY (Process ");
+          fprintf_bignumber(__real_rank);
+          fprintf(stderr, "):\n");
 
           // Send
-          fprintf(stderr, "\t" "%lld message send", __count_send_local);
+          fprintf(stderr, MPROF "         message sent: ");
+          fprintf_bignumber(__count_send_local);
+          fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_send, __max_time_wait_send);
+
+          //
+          fprintf(stderr, MPROF "         list(s) sent:");
 
           if (__count_send_local)
             {
-              //
-              fprintf(stderr, " to [");
-
               //
               for (int j = 0; j < __real_size; j++)
                 {
                   if (__list_of_process_send_to[j])
                     fprintf(stderr, " %d", j);
                 }
-
-              //
-              fprintf(stderr, " ]");
-
-              //
-              fprintf(stderr, " (max: %f sec)\n", __max_time_wait_send);
             }
-      
+
+          fprintf(stderr, "\n");
+
           // Recv
-          fprintf(stderr, "\t" "%lld message recv", __count_recv_local);
+          fprintf(stderr, MPROF "         message recv: ");
+          fprintf_bignumber(__count_recv_local);
+          fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_recv, __max_time_wait_recv);
+
+          //
+          fprintf(stderr, MPROF "         list(s) recv:");
 
           if (__count_recv_local)
             {
-              //
-              fprintf(stderr, " from [");
-
               //
               for (int j = 0; j < __real_size; j++)
                 {
                   if (__list_of_process_recv_from[j])
                     fprintf(stderr, " %d", j);
                 }
-
-              //
-              fprintf(stderr, " ]");
-
-              //
-              fprintf(stderr, " (max: %f sec)\n", __max_time_wait_recv);
             }
+
+          fprintf(stderr, "\n");
       
           // Barrier
-          fprintf(stderr, "\t" "%lld barrier passed (max: %f sec)\n", __count_barrier_local, __max_time_wait_barrier);
+          fprintf(stderr, MPROF "    barrier(s) passed: ");
+          fprintf_bignumber(__count_barrier_local);
+          fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_barrier, __max_time_wait_barrier);
 
           //
-          fprintf(stderr, "\n");
+          fprintf(stderr, MPROF "\n");
         }
+
+      //
+      fflush(stderr);
 
       // Call MPI_Barrier to print in order
       real_MPI_Barrier(MPI_COMM_WORLD);
@@ -372,15 +427,21 @@ int MPI_Finalize(void)
   if (__real_rank == 0)
     {
       // Error
-      fprintf(stderr, "ERROR SUMMARY:\n");
+      fprintf(stderr, MPROF "ERROR SUMMARY:\n");
       
       if (__count_process_hit_barrier != 0)
         {
-          fprintf(stderr, "\t" "%lld processs waiting in barrier\n", __count_process_hit_barrier);
+          // Barrier
+          fprintf(stderr, MPROF "  process(es) blocked: ");
+          fprintf_bignumber(__count_process_hit_barrier);
+          fprintf(stderr, " in barrier\n");
+          fprintf(stderr, MPROF "  process(es) in wait: ");
+          fprintf_bignumber(__real_size - __count_process_hit_barrier);
+          fprintf(stderr, " in barrier\n");
         }
       else
         {
-          fprintf(stderr, "\t" "No error\n");
+          fprintf(stderr, MPROF "         No errors\n");
         }
     }
 
