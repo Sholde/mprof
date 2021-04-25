@@ -21,11 +21,12 @@
   - gcc
   - make
   - MPI library (any vesrion)
+  - coreutils (install)
 
 ** Example of installation on Arch Linux
 
    #+BEGIN_SRC shell
-$ sudo pacman -S --needed gcc make openmpi
+$ sudo pacman -S --needed gcc make openmpi coreutils
    #+END_SRC
 
 * Installation
