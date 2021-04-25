@@ -1,0 +1,49 @@
+#+TITLE: MPI Profiler
+#+AUTHOR: Sholde
+#+DATE: April 2021
+
+*MPI Profiler* (alias mprof) is a tool to profile *MPI* function. It use an
+*interposition library*, nammed *libmprof.so*. A wrapper is also provide, nammed
+*mprof*.
+
+* Disclaimer
+
+  This tool profile *only MPI_COMM_WORLD communication* (other communication
+  will work but not profiled) and it is not currently *thread safe*.
+
+  Therefore, we recommend you to run this tool only with full *MPI* application
+  and with only *MPI_COMM_WORLD* communicator.
+
+* Dependencies
+
+  Please ensure that following dependencies are installed in your system:
+
+  - gcc
+  - make
+  - MPI library (any vesrion)
+
+** Example of installation on Arch Linux
+
+   #+BEGIN_SRC shell
+$ sudo pacman -S --needed gcc make openmpi
+   #+END_SRC
+
+* Installation
+
+  #+BEGIN_SRC shell
+$ git clone https://github.com/Sholde/mprof.git
+$ cd mprof
+$ make
+$ sudo make install
+  #+END_SRC
+
+* Usage
+
+  It is easy to use. You just need to put *mprof* word ahead your *MPI*
+  execution line. For example:
+
+  #+BEGIN_SRC shell
+$ mprof mpiexec -np 4 ./a.out
+or
+$ mprof mpirun -np 4 ./a.out
+  #+END_SRC
