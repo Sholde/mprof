@@ -5,66 +5,47 @@
 #include <dlfcn.h>
 #include <mpi.h>
 
-#include <locale.h>
+#include "mprof.h"
 
-#define MPROF "==mprof== "
+/**************************************
+ *                                    *
+ *       LOAD / UNLOAD FUNCTION       *
+ *                                    *
+ **************************************/
 
-//
-static int __real_size = -1;
-static int __real_rank = -1;
+__attribute__((constructor)) void init(void)
+{
+  char *env = getenv(MPROF_ENV);
 
-int (*real_MPI_size)(MPI_Comm comm, int *size) = NULL;
-int (*real_MPI_rank)(MPI_Comm comm, int *rank) = NULL;
+  if (strcmp(env, "--verbose") == 0)
+    {
+      __verbose = 1;
+    }
 
-//
-static unsigned long long __count_send = 0;
-static unsigned long long __count_recv = 0;
-static unsigned long long __count_send_local = 0;
-static unsigned long long __count_recv_local = 0;
+  if (strcmp(env, "--barrier") == 0)
+    {
+      __barrier = 1;
+    }
 
-static double __max_time_wait_send = 0.0;
-static double __total_time_wait_send = 0.0;
-static double __max_time_wait_recv = 0.0;
-static double __total_time_wait_recv = 0.0;
+  if (strcmp(env, "--finalize") == 0)
+    {
+      __finalize = 1;
+    }
+}
 
-static double __global_time_send = 0.0;
-static double __global_time_recv = 0.0;
-
-int (*real_MPI_Send)(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm) = NULL;
-int (*real_MPI_Recv)(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status) = NULL;
-
-//
-static unsigned long long __count_process_hit_barrier = 0;
-static unsigned long long __count_barrier_local = 0;
-static unsigned long long __count_barrier = 0;
-
-static double __max_time_wait_barrier = 0.0;
-static double __total_time_wait_barrier = 0.0;
-
-static double __global_time_barrier = 0.0;
-
-int (*real_MPI_Barrier)(MPI_Comm comm) = NULL;
-
-//
-int (*real_MPI_Init)(int *argc, char ***argv) = NULL;
-int (*real_MPI_Finalize)() = NULL;
-
-//
-static unsigned long long *__list_of_process_send_to = NULL;
-static unsigned long long *__list_of_process_recv_from = NULL;
-
-/******************
- *    FUNCTION    *
- ******************/
-
-__attribute((constructor)) void init(void)
+__attribute__((destructor)) void finalize(void)
 {
   ;
 }
 
-int MPI_Init(int *argc, char ***argv)
+/**************************************
+ *                                    *
+ *         GETTER FUNCTION            *
+ *                                    *
+ **************************************/
+
+static void get_MPI_Init(void)
 {
-  // First call
   if (!real_MPI_Init)
     {
       real_MPI_Init = (int (*)(int *, char ***))dlsym(RTLD_NEXT, "MPI_Init");
@@ -74,15 +55,10 @@ int MPI_Init(int *argc, char ***argv)
           abort();
         }
     }
+}
 
-  // Call MPI_Init
-  int ret = real_MPI_Init(argc, argv);
-
-  //////////////////////////
-  // Prepare all function //
-  //////////////////////////
-
-  // MPI_Comm_rank
+static void get_MPI_Comm_rank(void)
+{
   if (!real_MPI_rank)
     {
       real_MPI_rank = (int (*)(MPI_Comm, int *))dlsym(RTLD_DEFAULT, "MPI_Comm_rank");
@@ -92,11 +68,10 @@ int MPI_Init(int *argc, char ***argv)
           abort();
         }
     }
+}
 
-  // Call MPI_Comm_rank
-  real_MPI_rank(MPI_COMM_WORLD, &__real_rank);
-
-  // MPI_Comm_size
+static void get_MPI_Comm_size(void)
+{
   if (!real_MPI_size)
     {
       real_MPI_size = (int (*)(MPI_Comm, int *))dlsym(RTLD_DEFAULT, "MPI_Comm_size");
@@ -106,11 +81,10 @@ int MPI_Init(int *argc, char ***argv)
           abort();
         }
     }
+}
 
-  // Call MPI_Comm_size
-  real_MPI_size(MPI_COMM_WORLD, &__real_size);
-
-  // MPI_Send
+static void get_MPI_Send()
+{
   if (!real_MPI_Send)
     {
       real_MPI_Send = (int (*)(const void *, int, MPI_Datatype, int, int, MPI_Comm))dlsym(RTLD_NEXT, "MPI_Send");
@@ -120,8 +94,10 @@ int MPI_Init(int *argc, char ***argv)
           abort();
         }
     }
+}
 
-  // MPI_Recv
+static void get_MPI_Recv()
+{
   if (!real_MPI_Recv)
     {
       real_MPI_Recv = (int (*)(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *))dlsym(RTLD_NEXT, "MPI_Recv");
@@ -131,8 +107,10 @@ int MPI_Init(int *argc, char ***argv)
           abort();
         }
     }
+}
 
-  // MPI_Barrier
+static void get_MPI_Barrier()
+{
   if (!real_MPI_Barrier)
     {
       real_MPI_Barrier = (int (*)(MPI_Comm))dlsym(RTLD_NEXT, "MPI_Barrier");
@@ -142,8 +120,10 @@ int MPI_Init(int *argc, char ***argv)
           abort();
         }
     }
+}
 
-  // MPI_Finalize
+static void get_MPI_Finalize()
+{
   if (!real_MPI_Finalize)
     {
       real_MPI_Finalize = (int (*)())dlsym(RTLD_NEXT, "MPI_Finalize");
@@ -153,6 +133,38 @@ int MPI_Init(int *argc, char ***argv)
           abort();
         }
     }
+}
+
+/**************************************
+ *                                    *
+ *            MPI FUNCTION            *
+ *                                    *
+ **************************************/
+
+int MPI_Init(int *argc, char ***argv)
+{
+  // First call
+  get_MPI_Init();
+  
+  // Call MPI_Init
+  int ret = real_MPI_Init(argc, argv);
+
+  //////////////////////////
+  // Prepare all function //
+  //////////////////////////
+
+  get_MPI_Comm_rank();
+  get_MPI_Comm_size();
+  get_MPI_Send();
+  get_MPI_Recv();
+  get_MPI_Barrier();
+  get_MPI_Finalize();
+
+  // Call MPI_Comm_rank
+  real_MPI_rank(MPI_COMM_WORLD, &__real_rank);
+  
+  // Call MPI_Comm_size
+  real_MPI_size(MPI_COMM_WORLD, &__real_size);
 
   // Allocate list
   __list_of_process_send_to = malloc(sizeof(unsigned long long) * __real_size);
@@ -162,11 +174,23 @@ int MPI_Init(int *argc, char ***argv)
   memset(__list_of_process_recv_from, 0, sizeof(unsigned long long) * __real_size);
 
   //
+  if (__verbose)
+    {
+      fprintf(stderr, MPROF "Process %d enter in MPI_init\n", __real_rank);
+    }
+  
+  //
   return ret;
 }
 
 int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
 {
+  //
+  if (__verbose)
+    {
+      fprintf(stderr, MPROF "Process %d enter in MPI_Send\n", __real_rank);
+    }
+
   //
   __count_send_local++;
 
@@ -205,6 +229,12 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
 int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status)
 {
   //
+  if (__verbose)
+    {
+      fprintf(stderr, MPROF "Process %d enter in MPI_Recv\n", __real_rank);
+    }
+
+  //
   __count_recv_local++;
 
   //
@@ -240,6 +270,12 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
 
 int MPI_Barrier(MPI_Comm comm)
 {
+  //
+  if (__verbose || __barrier)
+    {
+      fprintf(stderr, MPROF "Process %d enter in MPI_Barrier\n", __real_rank);
+    }
+
   //
   if (__real_rank == 0)
     {
@@ -307,6 +343,12 @@ static void fprintf_bignumber(unsigned long long n)
 
 int MPI_Finalize(void)
 {
+  //
+  if (__verbose || __finalize)
+    {
+      fprintf(stderr, MPROF "Process %d enter in MPI_Finalize\n", __real_rank);
+    }
+
   //
   unsigned long long buff_count_send = __count_send_local;
   unsigned long long buff_count_recv = __count_recv_local;
@@ -448,12 +490,6 @@ int MPI_Finalize(void)
   free(__list_of_process_send_to);
   free(__list_of_process_recv_from);
 
-  
   // Call MPI_Finalize
   return real_MPI_Finalize();
-}
-
-__attribute((destructor)) void finalize(void)
-{
-  ;
 }
