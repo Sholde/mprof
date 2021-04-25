@@ -310,13 +310,12 @@ int MPI_Finalize(void)
   //
   unsigned long long buff_count_send = __count_send_local;
   unsigned long long buff_count_recv = __count_recv_local;
-  unsigned long long buff_count_barrier = __count_barrier_local;
 
   //
   MPI_Reduce(&buff_count_send, &__count_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&buff_count_recv, &__count_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&buff_count_barrier, &__count_barrier, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-
+  __count_barrier = __count_barrier_local;
+  
   //
   double buff_time_send = __total_time_wait_send;
   double buff_time_recv = __total_time_wait_recv;
@@ -327,9 +326,7 @@ int MPI_Finalize(void)
   MPI_Reduce(&buff_time_recv, &__global_time_recv, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&buff_time_barrier, &__global_time_barrier, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  //
-  setlocale(LC_ALL, "en_GB");
-
+  // Global summary
   if (__real_rank == 0)
     {
       // mprof
@@ -359,6 +356,7 @@ int MPI_Finalize(void)
       fprintf(stderr, MPROF "\n");
     }
 
+  // Local summary
   for (int i = 0; i < __real_size; i++)
     {
       if (i == __real_rank)
@@ -373,8 +371,18 @@ int MPI_Finalize(void)
           fprintf_bignumber(__count_send_local);
           fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_send, __max_time_wait_send);
 
-          //
-          fprintf(stderr, MPROF "         list(s) sent:");
+          // Recv
+          fprintf(stderr, MPROF "         message recv: ");
+          fprintf_bignumber(__count_recv_local);
+          fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_recv, __max_time_wait_recv);
+
+          // Barrier
+          fprintf(stderr, MPROF "    barrier(s) passed: ");
+          fprintf_bignumber(__count_barrier_local);
+          fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_barrier, __max_time_wait_barrier);
+
+          // List process sent to
+          fprintf(stderr, MPROF "      list(s) sent to:");
 
           if (__count_send_local)
             {
@@ -388,13 +396,8 @@ int MPI_Finalize(void)
 
           fprintf(stderr, "\n");
 
-          // Recv
-          fprintf(stderr, MPROF "         message recv: ");
-          fprintf_bignumber(__count_recv_local);
-          fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_recv, __max_time_wait_recv);
-
-          //
-          fprintf(stderr, MPROF "         list(s) recv:");
+          // List process received from
+          fprintf(stderr, MPROF "    list(s) recv from:");
 
           if (__count_recv_local)
             {
@@ -408,22 +411,18 @@ int MPI_Finalize(void)
 
           fprintf(stderr, "\n");
       
-          // Barrier
-          fprintf(stderr, MPROF "    barrier(s) passed: ");
-          fprintf_bignumber(__count_barrier_local);
-          fprintf(stderr, " - waiting %f sec (max: %f sec)\n", __total_time_wait_barrier, __max_time_wait_barrier);
-
-          //
+          // Separate process
           fprintf(stderr, MPROF "\n");
         }
 
-      //
+      // Try to unifrom the output
       fflush(stderr);
 
       // Call MPI_Barrier to print in order
       real_MPI_Barrier(MPI_COMM_WORLD);
     }
 
+  // Error summary
   if (__real_rank == 0)
     {
       // Error
