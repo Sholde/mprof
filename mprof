@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 
 # Handle mprof option
 if [ $# > 1 ] ; then
@@ -12,6 +12,13 @@ if [ $# > 1 ] ; then
         -v | --version)
             echo "mprof (MPROF) 0.0.1"
             echo "GNU General Public License v3.0"
+            exit 0
+            ;;
+        -l | --list)
+            echo "List of MPROF_OPTIONS options:"
+            echo "  --verbose"
+            echo "  --barrier"
+            echo "  --finalize"
             exit 0
             ;;
     esac
