@@ -1,3 +1,4 @@
 *~
 *.o
 libmprof.so
+mprof.1

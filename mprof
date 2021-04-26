@@ -1,3 +1,20 @@
-#!/bin/bash
+#!/bin/sh
+
+# Handle mprof option
+if [ $# > 1 ] ; then
+    case $1 in
+        -h | --help)
+            echo "This is the help of mprof"
+            echo "  -v, --version  Display the version"
+            echo "  -h, --help     Display this help"
+            exit 0
+            ;;
+        -v | --version)
+            echo "mprof (MPROF) 0.0.1"
+            echo "GNU General Public License v3.0"
+            exit 0
+            ;;
+    esac
+fi
 
 LD_PRELOAD="/usr/local/lib/libmprof.so" $@
