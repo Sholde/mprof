@@ -53,9 +53,15 @@ int (*real_MPI_Finalize)() = NULL;
 static unsigned long long *__list_of_process_send_to = NULL;
 static unsigned long long *__list_of_process_recv_from = NULL;
 
+// Handle warning
+static unsigned long long __count_warning_local = 0;
+static unsigned long long __count_warning = 0;
+
 // DEBUG variable
+static char __debug = 0;
 static char __verbose = 0;
 static char __barrier = 0;
 static char __finalize = 0;
+static char __warning = 0;
 
 #endif // _MPROF_H_

@@ -61,6 +61,7 @@ $ mprof mpirun -np 4 ./a.out
      the caller
    - ~--barrier~ print only *MPI_Barrier* call
    - ~--finalize~ print only *MPI_Finalize* call
+   - ~--warning~ print only warning
 
 ** Example of usage
 

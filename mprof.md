@@ -43,6 +43,9 @@ put this list of options:
 **--finalize**
 : Display all call of *MPI_Finalize*
 
+**--warning**
+: Display all *warning*
+
 # EXAMPLES
 
 **mprof -h**
