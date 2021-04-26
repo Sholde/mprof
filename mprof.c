@@ -556,29 +556,84 @@ int MPI_Finalize(void)
     }
 
   // Local summary
-  for (int i = 0; i < __real_size; i++)
+
+  // Array to store all information for all process to print onl with process 0
+  unsigned long long *buff_count_send = NULL;
+  unsigned long long *buff_count_recv = NULL;
+  unsigned long long *buff_count_barrier = NULL;
+  unsigned long long *buff_count_warning = NULL;
+
+  double *buff_total_time_wait_send = NULL;
+  double *buff_total_time_wait_recv = NULL;
+  double *buff_total_time_wait_barrier = NULL;
+
+  double *buff_max_time_wait_send = NULL;
+  double *buff_max_time_wait_recv = NULL;
+  double *buff_max_time_wait_barrier = NULL;
+
+  unsigned long long *buff_list_send_to = NULL;
+  unsigned long long *buff_list_recv_from = NULL;
+
+  // Allocate array only for process 0
+  if (__real_rank == 0)
     {
-      //
-      if (i == __real_rank)
+      buff_count_send = malloc(sizeof(unsigned long long) * __real_size);
+      buff_count_recv = malloc(sizeof(unsigned long long) * __real_size);
+      buff_count_barrier = malloc(sizeof(unsigned long long) * __real_size);
+      buff_count_warning = malloc(sizeof(unsigned long long) * __real_size);
+
+      buff_total_time_wait_send  = malloc(sizeof(double) * __real_size);
+      buff_total_time_wait_recv  = malloc(sizeof(double) * __real_size);
+      buff_total_time_wait_barrier  = malloc(sizeof(double) * __real_size);
+      
+      buff_max_time_wait_send  = malloc(sizeof(double) * __real_size);
+      buff_max_time_wait_recv  = malloc(sizeof(double) * __real_size);
+      buff_max_time_wait_barrier  = malloc(sizeof(double) * __real_size);
+
+      buff_list_send_to = malloc(sizeof(unsigned long long *) * __real_size * __real_size);
+      buff_list_recv_from = malloc(sizeof(unsigned long long *) * __real_size * __real_size);
+    }
+
+  // Recup all information
+  MPI_Gather(&__count_send_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__count_recv_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__count_barrier_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_barrier, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__count_warning_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_warning, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+  MPI_Gather(&__total_time_wait_send, 1, MPI_DOUBLE, buff_total_time_wait_send, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__total_time_wait_recv, 1, MPI_DOUBLE, buff_total_time_wait_recv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__total_time_wait_barrier, 1, MPI_DOUBLE, buff_total_time_wait_barrier, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  MPI_Gather(&__max_time_wait_send, 1, MPI_DOUBLE, buff_max_time_wait_send, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__max_time_wait_recv, 1, MPI_DOUBLE, buff_max_time_wait_recv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__max_time_wait_barrier, 1, MPI_DOUBLE, buff_max_time_wait_barrier, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  MPI_Gather(__list_of_process_send_to, __real_size, MPI_UNSIGNED_LONG_LONG, buff_list_send_to, __real_size, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(__list_of_process_recv_from, __real_size, MPI_UNSIGNED_LONG_LONG, buff_list_recv_from, __real_size, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+  // Print only with process 0
+  if (__real_rank == 0)
+    {
+      for (int i = 0; i < __real_size; i++)
         {
           // Test if we need to print info
-          if (__count_send_local || __count_recv_local || __count_barrier_local || __count_warning_local)
+          if (buff_count_send[i] || buff_count_recv[i] || buff_count_barrier[i] || buff_count_warning[i])
             {
               // Print local
-              fprintf_local_summary(__real_rank);
-              fprintf_local_msg_send(__count_send_local, __total_time_wait_send, __max_time_wait_send);
-              fprintf_local_msg_recv(__count_recv_local, __total_time_wait_recv, __max_time_wait_recv);
-              fprintf_local_barrier(__count_barrier_local, __total_time_wait_barrier, __max_time_wait_barrier);
+              fprintf_local_summary(i);
+              fprintf_local_msg_send(buff_count_send[i], buff_total_time_wait_send[i], buff_max_time_wait_send[i]);
+              fprintf_local_msg_recv(buff_count_recv[i], buff_total_time_wait_recv[i], buff_max_time_wait_recv[i]);
+              fprintf_local_barrier(buff_count_barrier[i], buff_total_time_wait_barrier[i], buff_max_time_wait_barrier[i]);
 
               // List process sent to
               fprintf(stderr, MPROF "      list(s) sent to:");
 
-              if (__count_send_local)
+              if (buff_count_send[i])
                 {
                   //
                   for (int j = 0; j < __real_size; j++)
                     {
-                      if (__list_of_process_send_to[j])
+                      if (buff_list_send_to[i * __real_size + j])
                         fprintf(stderr, " %d", j);
                     }
                 }
@@ -588,12 +643,12 @@ int MPI_Finalize(void)
               // List process received from
               fprintf(stderr, MPROF "    list(s) recv from:");
 
-              if (__count_recv_local)
+              if (buff_count_recv[i])
                 {
                   //
                   for (int j = 0; j < __real_size; j++)
                     {
-                      if (__list_of_process_recv_from[j])
+                      if (buff_list_recv_from[i * __real_size + j])
                         fprintf(stderr, " %d", j);
                     }
                 }
@@ -601,21 +656,38 @@ int MPI_Finalize(void)
               fprintf(stderr, "\n");
       
               // Warning
-              if (__count_warning_local)
+              if (buff_count_warning[i])
                 {
-                  fprintf_warning(__count_warning_local);
+                  fprintf_warning(buff_count_warning[i]);
                 }
 
               // Separate process
               fprintf(stderr, MPROF "\n");
             }
+
+          // Try to unifrom the output
+          fflush(stderr);
         }
+    }
 
-      // Try to unifrom the output
-      fflush(stderr);
+  // Release memory only for process 0
+  if (__real_rank == 0)
+    {
+      free(buff_count_send);
+      free(buff_count_recv);
+      free(buff_count_barrier);
+      free(buff_count_warning);
 
-      // Call MPI_Barrier to print in order
-      real_MPI_Barrier(MPI_COMM_WORLD);
+      free(buff_total_time_wait_send);
+      free(buff_total_time_wait_recv);
+      free(buff_total_time_wait_barrier);
+
+      free(buff_max_time_wait_send);
+      free(buff_max_time_wait_recv);
+      free(buff_max_time_wait_barrier);
+
+      free(buff_list_send_to);
+      free(buff_list_recv_from);
     }
 
   // Error summary
