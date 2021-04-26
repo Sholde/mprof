@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/sh
 
 # Handle mprof option
 if [ $# > 1 ] ; then

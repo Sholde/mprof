@@ -17,19 +17,22 @@ __attribute__((constructor)) void init(void)
 {
   char *env = getenv(MPROF_ENV);
 
-  if (strcmp(env, "--verbose") == 0)
+  if (env != NULL)
     {
-      __verbose = 1;
-    }
+      if (strcmp(env, "--verbose") == 0)
+        {
+          __verbose = 1;
+        }
 
-  if (strcmp(env, "--barrier") == 0)
-    {
-      __barrier = 1;
-    }
+      if (strcmp(env, "--barrier") == 0)
+        {
+          __barrier = 1;
+        }
 
-  if (strcmp(env, "--finalize") == 0)
-    {
-      __finalize = 1;
+      if (strcmp(env, "--finalize") == 0)
+        {
+          __finalize = 1;
+        }
     }
 }
 
