@@ -459,11 +459,10 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
   //
-  unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
-
-  //
-  if (elapsed > 0)
+  if (end.tv_nsec > start.tv_nsec)
     {
+      unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
+
       if (elapsed > __max_time_wait_send)
         {
           __max_time_wait_send = elapsed;
@@ -531,11 +530,10 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
   //
-  unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
-
-  //
-  if (elapsed > 0)
+  if (end.tv_nsec > start.tv_nsec)
     {
+      unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
+
       if (elapsed > __max_time_wait_recv)
         {
           __max_time_wait_recv = elapsed;
@@ -596,11 +594,10 @@ int MPI_Barrier(MPI_Comm comm)
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
   //
-  unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
-
-  //
-  if (elapsed > 0)
+  if (end.tv_nsec > start.tv_nsec)
     {
+      unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
+
       if (elapsed > __max_time_wait_barrier)
         {
           __max_time_wait_barrier = elapsed;
@@ -617,7 +614,7 @@ int MPI_Finalize(void)
   // Get time of MPI process
   clock_gettime(CLOCK_MONOTONIC_RAW, &__end);
 
-  if (__end.tv_nsec - __start.tv_nsec < 0)
+  if (__end.tv_nsec < __start.tv_nsec)
     __process_time = 0;
   else
     __process_time = __end.tv_nsec - __start.tv_nsec;
