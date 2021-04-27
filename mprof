@@ -22,7 +22,7 @@ if [ $# > 1 ] ; then
             echo "    --verbose"
             echo "    --barrier"
             echo "    --finalize"
-            echo "    --warning"
+            echo "    --profile"
             exit 0
             ;;
     esac

@@ -119,37 +119,34 @@ Progress [   15 /    16]
 
    #+BEGIN_SRC shell
 $ MPROF_OPTIONS="--profile" mprof mpirun -np 2 ./a.out
-==mprof== PROFILE: Process 0 send independently elements which are contigous to Process 1
+==mprof== PROFILE: Process 0 send independently elements which are contiguous to Process 1
 ==mprof==             - Sending 1 element(s) of MPI_INT
-==mprof== PROFILE: Process 1 recv independently elements which are contigous from Process 0
-==mprof==             - Receiving 1 element(s) of MPI_INT
 ===============================================================================
 ================================= MPI PROFILER ================================
 ===============================================================================
 ==mprof== GLOBAL SUMMARY:
-==mprof==               running: 40 us
-==mprof==          message sent: 2 msg take 8 bytes - waiting 23 us in total
-==mprof==          message recv: 2 msg take 8 bytes - waiting 28 us in total
+==mprof==               running: 74 us
+==mprof==          message sent: 2 msg take 8 bytes - waiting 26 us in total
+==mprof==          message recv: 2 msg take 8 bytes - waiting 44 us in total
 ==mprof==     barrier(s) passed: 0 - waiting 0 ns in total
-==mprof==            warning(s): 2 - 1 send and 1 recv contigous
+==mprof==            warning(s): 1 - 1 contiguous send
 ==mprof== 
 ==mprof== LOCAL SUMMARY (Process 0):
-==mprof==               running: 40 us
-==mprof==          message sent: 2 msg take 8 bytes - waiting 23 us (max: 23 us)
+==mprof==               running: 46 us
+==mprof==          message sent: 2 msg take 8 bytes - waiting 26 us (max: 25 us)
 ==mprof==          message recv: 0 msg take 0 bytes - waiting 0 ns (max: 0 ns)
 ==mprof==     barrier(s) passed: 0 - waiting 0 ns (max: 0 ns)
 ==mprof==       list(s) sent to: 1
 ==mprof==     list(s) recv from:
-==mprof==            warning(s): 1 - 1 send and 0 recv contigous
+==mprof==            warning(s): 1 - 1 contiguous send
 ==mprof== 
 ==mprof== LOCAL SUMMARY (Process 1):
-==mprof==               running: 38 us
+==mprof==               running: 74 us
 ==mprof==          message sent: 0 msg take 0 bytes - waiting 0 ns (max: 0 ns)
-==mprof==          message recv: 2 msg take 8 bytes - waiting 28 us (max: 27 us)
+==mprof==          message recv: 2 msg take 8 bytes - waiting 44 us (max: 35 us)
 ==mprof==     barrier(s) passed: 0 - waiting 0 ns (max: 0 ns)
 ==mprof==       list(s) sent to:
 ==mprof==     list(s) recv from: 0
-==mprof==            warning(s): 1 - 0 send and 1 recv contigous
 ==mprof== 
 ==mprof== ERROR SUMMARY:
 ==mprof==          No errors

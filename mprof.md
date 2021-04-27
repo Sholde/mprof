@@ -53,7 +53,7 @@ put this list of options:
 : Display all call of *MPI_Finalize*.
 
 `--profile`
-: Display all information of profiling, like contigous sends or receives.
+: Display all information of profiling, like contiguous sends.
 
 # EXAMPLES
 

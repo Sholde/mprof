@@ -25,15 +25,11 @@ static unsigned long long __count_bytes_send_local = 0;
 static unsigned long long __count_bytes_recv_local = 0;
 
 //
-static unsigned long long __count_send_contigous_local = 0;
-static unsigned long long __count_recv_contigous_local = 0;
-static unsigned long long __count_send_contigous = 0;
-static unsigned long long __count_recv_contigous = 0;
+static unsigned long long __count_send_contiguous_local = 0;
+static unsigned long long __count_send_contiguous = 0;
 
-static void *__send_previous_contigous_addr = NULL;
-static void *__recv_previous_contigous_addr = NULL;
+static void *__send_previous_contiguous_addr = NULL;
 static unsigned long long __send_previous_shift = 0;
-static unsigned long long __recv_previous_shift = 0;
 
 // Time for send and recv
 static double __max_time_wait_send = 0;
