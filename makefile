@@ -33,4 +33,4 @@ man:
 	fi
 
 clean:
-	rm -Rf *~ *.o $(LIB) $(MAN)
+	rm -Rf *~ *.o $(LIB)
