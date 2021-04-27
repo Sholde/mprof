@@ -88,9 +88,9 @@ static inline void update_global_variable(void)
   double buff_time_barrier = __total_time_wait_barrier;
   
   //
-  MPI_Reduce(&buff_time_send, &__global_time_send, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&buff_time_recv, &__global_time_recv, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&buff_time_barrier, &__global_time_barrier, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_send, &__global_time_send, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_recv, &__global_time_recv, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_barrier, &__global_time_barrier, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
   //
   double buff_app_time = __process_time;
@@ -99,6 +99,11 @@ static inline void update_global_variable(void)
   //
   char buff_error_monitor_time = __error_monitor_time;
   MPI_Reduce(&buff_error_monitor_time, &__error_monitor_time, 1, MPI_CHAR, MPI_MAX, 0, MPI_COMM_WORLD);
+
+  //
+  __mpi_time_local = __total_time_wait_send + __total_time_wait_recv + __total_time_wait_barrier;
+  double buff_mpi_time = __mpi_time_local;
+  MPI_Reduce(&buff_mpi_time, &__mpi_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 }
 
 //
@@ -159,35 +164,66 @@ static inline void fprintf_global_app_time(double time)
   fprintf(stderr, "\n");
 }
 
+static inline void fprintf_global_mpi_time(double time)
+{
+  fprintf(stderr, MPROF "             mpi time: ");
+  fprintf_time(time);
+  fprintf(stderr, "\n");
+}
+
 static inline void fprintf_global_msg_send(unsigned long long count, unsigned long long bytes, double time)
 {
-  fprintf(stderr, MPROF "         message sent: ");
-  fprintf_bignumber(count);
-  fprintf(stderr, " msg take ");
-  fprintf_bignumber(bytes);
-  fprintf(stderr, " bytes - waiting ");
-  fprintf_time(time);
-  fprintf(stderr, " in total\n");
+  fprintf(stderr, MPROF "      message(s) sent: ");
+
+  if (count)
+    {
+      fprintf_bignumber(count);
+      fprintf(stderr, " msg take ");
+      fprintf_bignumber(bytes);
+      fprintf(stderr, " bytes - waiting ");
+      fprintf_time(time);
+      fprintf(stderr, " maximum\n");
+    }
+  else
+    {
+      fprintf(stderr, "No send\n");
+    }
 }
 
 static inline void fprintf_global_msg_recv(unsigned long long count, unsigned long long bytes, double time)
 {
-  fprintf(stderr, MPROF "         message recv: ");
-  fprintf_bignumber(count);
-  fprintf(stderr, " msg take ");
-  fprintf_bignumber(bytes);
-  fprintf(stderr, " bytes - waiting ");
-  fprintf_time(time);
-  fprintf(stderr, " in total\n");
+  fprintf(stderr, MPROF "      message(s) recv: ");
+  
+  if (count)
+    {
+      fprintf_bignumber(count);
+      fprintf(stderr, " msg take ");
+      fprintf_bignumber(bytes);
+      fprintf(stderr, " bytes - waiting ");
+      fprintf_time(time);
+      fprintf(stderr, " maximum\n");
+    }
+  else
+    {
+      fprintf(stderr, "No recv\n");
+    }
 }
 
 static inline void fprintf_global_barrier(unsigned long long count, double time)
 {
   fprintf(stderr, MPROF "    barrier(s) passed: ");
-  fprintf_bignumber(count);
-  fprintf(stderr, " - waiting ");
-  fprintf_time(time);
-  fprintf(stderr, " in total\n");
+  
+  if (count)
+    {  
+      fprintf_bignumber(count);
+      fprintf(stderr, " - waiting ");
+      fprintf_time(time);
+      fprintf(stderr, " maximum\n");
+    }
+  else
+    {
+      fprintf(stderr, "No barrier\n");
+    }
 }
 
 static inline void fprintf_warning(unsigned long long count, unsigned long long send_contiguous)
@@ -219,41 +255,72 @@ static inline void fprintf_local_process_time(double time)
   fprintf(stderr, "\n");
 }
 
+static inline void fprintf_local_mpi_time(double time)
+{
+  fprintf(stderr, MPROF "             mpi time: ");
+  fprintf_time(time);
+  fprintf(stderr, "\n");
+}
+
 static inline void fprintf_local_msg_send(unsigned long long count, unsigned long long bytes, double time, double max)
 {
-  fprintf(stderr, MPROF "         message sent: ");
-  fprintf_bignumber(count);
-  fprintf(stderr, " msg take ");
-  fprintf_bignumber(bytes);
-  fprintf(stderr, " bytes - waiting ");
-  fprintf_time(time);
-  fprintf(stderr, " (max: ");
-  fprintf_time(max);
-  fprintf(stderr, ")\n");
+  fprintf(stderr, MPROF "      message(s) sent: ");
+
+  if (count)
+    {
+      fprintf_bignumber(count);
+      fprintf(stderr, " msg take ");
+      fprintf_bignumber(bytes);
+      fprintf(stderr, " bytes - waiting ");
+      fprintf_time(time);
+      fprintf(stderr, " (max: ");
+      fprintf_time(max);
+      fprintf(stderr, ")\n");
+    }
+  else
+    {
+      fprintf(stderr, "No send\n");
+    }
 }
 
 static inline void fprintf_local_msg_recv(unsigned long long count, unsigned long long bytes, double time, double max)
 {
-  fprintf(stderr, MPROF "         message recv: ");
-  fprintf_bignumber(count);
-  fprintf(stderr, " msg take ");
-  fprintf_bignumber(bytes);
-  fprintf(stderr, " bytes - waiting ");
-  fprintf_time(time);
-  fprintf(stderr, " (max: ");
-  fprintf_time(max);
-  fprintf(stderr, ")\n");
+  fprintf(stderr, MPROF "      message(s) recv: ");
+
+  if (count)
+    {
+      fprintf_bignumber(count);
+      fprintf(stderr, " msg take ");
+      fprintf_bignumber(bytes);
+      fprintf(stderr, " bytes - waiting ");
+      fprintf_time(time);
+      fprintf(stderr, " (max: ");
+      fprintf_time(max);
+      fprintf(stderr, ")\n");
+    }
+  else
+    {
+      fprintf(stderr, "No recv\n");
+    }
 }
 
 static inline void fprintf_local_barrier(unsigned long long count, double time, double max)
 {
   fprintf(stderr, MPROF "    barrier(s) passed: ");
-  fprintf_bignumber(count);
-  fprintf(stderr, " - waiting ");
-  fprintf_time(time);
-  fprintf(stderr, " (max: ");
-  fprintf_time(max);
-  fprintf(stderr, ")\n");
+
+  if (count)
+    {
+      fprintf_bignumber(count);
+      fprintf(stderr, " - waiting ");
+      fprintf_time(time);
+      fprintf(stderr, " (max: ");
+      fprintf_time(max);
+      fprintf(stderr, ")\n");
+    }
+  else
+    {
+      fprintf(stderr, "No barrier\n");
+    }
 }
 
 static inline void fprintf_process_blocked(unsigned long long count)
@@ -697,6 +764,7 @@ int MPI_Finalize(void)
       //
       fprintf_global_summary();
       fprintf_global_app_time(__app_time);
+      fprintf_global_mpi_time(__mpi_time);
       fprintf_global_msg_send(__count_send, __count_bytes_send, __global_time_send);
       fprintf_global_msg_recv(__count_recv, __count_bytes_recv, __global_time_recv);
       fprintf_global_barrier(__count_barrier, __global_time_barrier);
@@ -736,6 +804,7 @@ int MPI_Finalize(void)
   unsigned long long *buff_list_recv_from = NULL;
 
   double *buff_process_time = NULL;
+  double *buff_mpi_time = NULL;
 
   // Allocate array only for process 0
   if (__real_rank == 0)
@@ -762,6 +831,7 @@ int MPI_Finalize(void)
       buff_list_recv_from = malloc(sizeof(unsigned long long *) * __real_size * __real_size);
 
       buff_process_time = malloc(sizeof(double) * __real_size);
+      buff_mpi_time = malloc(sizeof(double) * __real_size);
     }
 
   // Recup all information
@@ -787,18 +857,22 @@ int MPI_Finalize(void)
   MPI_Gather(__list_of_process_recv_from, __real_size, MPI_UNSIGNED_LONG_LONG, buff_list_recv_from, __real_size, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
   MPI_Gather(&__process_time, 1, MPI_DOUBLE, buff_process_time, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__mpi_time_local, 1, MPI_DOUBLE, buff_mpi_time, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // Print only with process 0
   if (__real_rank == 0)
     {
       for (int i = 0; i < __real_size; i++)
         {
+          // Print local
+          fprintf_local_summary(i);
+
           // Test if we need to print info
           if (buff_count_send[i] || buff_count_recv[i] || buff_count_barrier[i] || buff_count_warning[i])
             {
-              // Print local
-              fprintf_local_summary(i);
+              //
               fprintf_local_process_time(buff_process_time[i]);
+              fprintf_local_mpi_time(buff_mpi_time[i]);
               fprintf_local_msg_send(buff_count_send[i], buff_count_bytes_send[i], buff_total_time_wait_send[i], buff_max_time_wait_send[i]);
               fprintf_local_msg_recv(buff_count_recv[i], buff_count_bytes_recv[i], buff_total_time_wait_recv[i], buff_max_time_wait_recv[i]);
               fprintf_local_barrier(buff_count_barrier[i], buff_total_time_wait_barrier[i], buff_max_time_wait_barrier[i]);
@@ -842,6 +916,11 @@ int MPI_Finalize(void)
               // Separate process
               fprintf(stderr, MPROF "\n");
             }
+          else
+            {
+              fprintf(stderr, MPROF SPACE_MSG "No communication\n");
+              fprintf(stderr, MPROF "\n");
+            }
 
           // Try to unifrom the output
           fflush(stderr);
@@ -873,6 +952,7 @@ int MPI_Finalize(void)
       free(buff_list_recv_from);
 
       free(buff_process_time);
+      free(buff_mpi_time);
     }
 
   // Error summary
@@ -895,7 +975,7 @@ int MPI_Finalize(void)
         }
       else
         {
-          fprintf(stderr, MPROF "         No errors\n");
+          fprintf(stderr, MPROF SPACE_MSG "No errors\n");
         }
     }
 
