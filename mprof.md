@@ -25,7 +25,7 @@ mprof - MPI Profiler
 # DESCRIPTION
 
 **mprof** is a profiler tool, that profile *MPI* application. Currently, the
-profiling work only in full *MPI* applicatin because *this is not thread safe*.
+profiling work only in full *MPI* applicatin because *it is not thread safe*.
 
 # GENERAL OPTIONS
 
@@ -52,8 +52,8 @@ put this list of options:
 `--finalize`
 : Display all call of *MPI_Finalize*.
 
-`--warning`
-: Display all *warning*.
+`--profile`
+: Display all information of profiling, like contigous sends or receives.
 
 # EXAMPLES
 

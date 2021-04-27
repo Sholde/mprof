@@ -35,10 +35,10 @@ __attribute__((constructor)) void init(void)
           __debug = 1;
           __finalize = 1;
         }
-      else if (strcmp(env, "--warning") == 0)
+      else if (strcmp(env, "--profile") == 0)
         {
           __debug = 1;
-          __warning = 1;
+          __profile = 1;
         }
     }
 }
@@ -75,7 +75,15 @@ static inline void update_global_variable(void)
   //
   MPI_Reduce(&buff_count_bytes_send, &__count_bytes_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&buff_count_bytes_recv, &__count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-  
+
+  //
+  unsigned long long buff_count_send_contigous = __count_send_contigous_local;
+  unsigned long long buff_count_recv_contigous = __count_recv_contigous_local;
+
+  //
+  MPI_Reduce(&buff_count_send_contigous, &__count_send_contigous, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_count_recv_contigous, &__count_recv_contigous, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
   //
   double buff_time_send = __total_time_wait_send;
   double buff_time_recv = __total_time_wait_recv;
@@ -184,10 +192,18 @@ static inline void fprintf_global_barrier(unsigned long long count, double time)
   fprintf(stderr, " in total\n");
 }
 
-static inline void fprintf_warning(unsigned long long count)
+static inline void fprintf_warning(unsigned long long count, unsigned long long send_contigous, unsigned long long recv_contigous)
 {
   fprintf(stderr, MPROF "           warning(s): ");
   fprintf_bignumber(count);
+  if (send_contigous || recv_contigous)
+    {
+      fprintf(stderr, " - ");
+      fprintf_bignumber(send_contigous);
+      fprintf(stderr, " send and ");
+      fprintf_bignumber(recv_contigous);
+      fprintf(stderr, " recv contigous");
+    }
   fprintf(stderr, "\n");
 }
 
@@ -419,30 +435,58 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
     }
   
   //
+  int buff_size = 0;
+  MPI_Type_size(datatype, &buff_size);
+  __count_bytes_send_local += count * buff_size;
+
+  //
+  int len;
+  char buff_type_name[64] = { 0 };
+  MPI_Type_get_name(datatype, buff_type_name, &len);
+
+  //
+  char send_contigous = 0;
+
+  //
+  if (__send_previous_contigous_addr != NULL &&
+      (unsigned long long)__send_previous_contigous_addr + __send_previous_shift == (unsigned long long)buf)
+    {
+      //
+      send_contigous = 1;
+
+      //
+      __count_warning_local++;
+
+      //
+      __count_send_contigous_local++;
+    }
+  
+  __send_previous_contigous_addr = (void *)buf;
+  __send_previous_shift = count * buff_size;
+
+  //
   if (__debug)
     {
       if (__verbose)
         {
-          int len;
-          char buff[64] = { 0 };
-          MPI_Type_get_name(datatype, buff, &len);
-          
-          fprintf(stderr, MPROF "Process %d enter in MPI_Send, send %d %s to %d\n", __real_rank, count, buff, dest);
+          fprintf(stderr, MPROF "Process %d enter in MPI_Send, send %d %s to %d\n", __real_rank, count, buff_type_name, dest);
         }
 
-      if (__warning)
+      if (__profile)
         {
           if (send_to_me)
             {
               fprintf(stderr, MPROF "WARNING: Process %d send to himself\n", __real_rank);
             }
+
+          if (send_contigous)
+            {
+              fprintf(stderr, MPROF "PROFILE: Process %d send independently elements which are contigous to Process %d\n"
+                      MPROF         "            - Sending %d element(s) of %s\n", __real_rank, dest, count, buff_type_name);
+            }
         }
     }
 
-  //
-  int buff_size = 0;
-  MPI_Type_size(datatype, &buff_size);
-  __count_bytes_send_local += count * buff_size;
 
   //
   __count_send_local++;
@@ -490,6 +534,36 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
     }
   
   //
+  int buff_size = 0;
+  MPI_Type_size(datatype, &buff_size);
+  __count_bytes_recv_local += count * buff_size;
+
+  //
+  int len;
+  char buff_type_name[64] = { 0 };
+  MPI_Type_get_name(datatype, buff_type_name, &len);
+
+  //
+  char recv_contigous = 0;
+
+  //
+  if (__recv_previous_contigous_addr != NULL &&
+      (unsigned long long)__recv_previous_contigous_addr + __recv_previous_shift == (unsigned long long)buf)
+    {
+      //
+      recv_contigous = 1;
+
+      //
+      __count_warning_local++;
+
+      //
+      __count_recv_contigous_local++;
+    }
+  
+  __recv_previous_contigous_addr = (void *)buf;
+  __recv_previous_shift = count * buff_size;
+
+  //
   if (__debug)
     {
       if (__verbose)
@@ -501,19 +575,20 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
           fprintf(stderr, MPROF "Process %d enter in MPI_Send, recv %d %s from %d\n", __real_rank, count, buff, source);
         }
 
-      if (__warning)
+      if (__profile)
         {
           if (recv_from_me)
             {
               fprintf(stderr, MPROF "WARNING: Process %d recv from himself\n", __real_rank);
             }
+
+          if (recv_contigous)
+            {
+              fprintf(stderr, MPROF "PROFILE: Process %d recv independently elements which are contigous from Process %d\n"
+                      MPROF         "            - Receiving %d element(s) of %s\n", __real_rank, source, count, buff_type_name);
+            }
         }
     }
-
-  //
-  int buff_size = 0;
-  MPI_Type_size(datatype, &buff_size);
-  __count_bytes_recv_local += count * buff_size;
 
   //
   __count_recv_local++;
@@ -657,7 +732,7 @@ int MPI_Finalize(void)
       // Warning
       if (__count_warning)
         {
-          fprintf_warning(__count_warning);
+          fprintf_warning(__count_warning, __count_send_contigous, __count_recv_contigous);
         }
 
       //
@@ -674,6 +749,9 @@ int MPI_Finalize(void)
 
   unsigned long long *buff_count_bytes_send = NULL;
   unsigned long long *buff_count_bytes_recv = NULL;
+
+  unsigned long long *buff_count_send_contigous = NULL;
+  unsigned long long *buff_count_recv_contigous = NULL;
 
   double *buff_total_time_wait_send = NULL;
   double *buff_total_time_wait_recv = NULL;
@@ -699,6 +777,9 @@ int MPI_Finalize(void)
       buff_count_bytes_send = malloc(sizeof(unsigned long long) * __real_size);
       buff_count_bytes_recv = malloc(sizeof(unsigned long long) * __real_size);
 
+      buff_count_send_contigous = malloc(sizeof(unsigned long long) * __real_size);
+      buff_count_recv_contigous = malloc(sizeof(unsigned long long) * __real_size);
+
       buff_total_time_wait_send  = malloc(sizeof(double) * __real_size);
       buff_total_time_wait_recv  = malloc(sizeof(double) * __real_size);
       buff_total_time_wait_barrier  = malloc(sizeof(double) * __real_size);
@@ -721,6 +802,9 @@ int MPI_Finalize(void)
 
   MPI_Gather(&__count_bytes_send_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(&__count_bytes_recv_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+  MPI_Gather(&__count_send_contigous_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_send_contigous, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__count_recv_contigous_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_recv_contigous, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
   MPI_Gather(&__total_time_wait_send, 1, MPI_DOUBLE, buff_total_time_wait_send, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
   MPI_Gather(&__total_time_wait_recv, 1, MPI_DOUBLE, buff_total_time_wait_recv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -783,7 +867,7 @@ int MPI_Finalize(void)
               // Warning
               if (buff_count_warning[i])
                 {
-                  fprintf_warning(buff_count_warning[i]);
+                  fprintf_warning(buff_count_warning[i], buff_count_send_contigous[i], buff_count_recv_contigous[i]);
                 }
 
               // Separate process
@@ -805,6 +889,9 @@ int MPI_Finalize(void)
 
       free(buff_count_bytes_send);
       free(buff_count_bytes_recv);
+
+      free(buff_count_send_contigous);
+      free(buff_count_recv_contigous);
 
       free(buff_total_time_wait_send);
       free(buff_total_time_wait_recv);

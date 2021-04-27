@@ -24,6 +24,17 @@ static unsigned long long __count_bytes_recv = 0;
 static unsigned long long __count_bytes_send_local = 0;
 static unsigned long long __count_bytes_recv_local = 0;
 
+//
+static unsigned long long __count_send_contigous_local = 0;
+static unsigned long long __count_recv_contigous_local = 0;
+static unsigned long long __count_send_contigous = 0;
+static unsigned long long __count_recv_contigous = 0;
+
+static void *__send_previous_contigous_addr = NULL;
+static void *__recv_previous_contigous_addr = NULL;
+static unsigned long long __send_previous_shift = 0;
+static unsigned long long __recv_previous_shift = 0;
+
 // Time for send and recv
 static double __max_time_wait_send = 0;
 static double __total_time_wait_send = 0;
@@ -68,7 +79,7 @@ static char __debug = 0;
 static char __verbose = 0;
 static char __barrier = 0;
 static char __finalize = 0;
-static char __warning = 0;
+static char __profile = 0;
 
 // Monitoring time
 static double __start;
