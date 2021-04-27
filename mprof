@@ -1,9 +1,8 @@
 #!/bin/sh
 
 # Handle mprof options
-if [ $# > 1 ] ; then
+if [ "$#" -ne "0" ] ; then
     case $1 in
-
         -h | --help)
             echo "This is the help of mprof"
             echo "  -v, --version  Display the version"
@@ -24,6 +23,9 @@ if [ $# > 1 ] ; then
             echo "    --finalize"
             echo "    --profile"
             exit 0
+            ;;
+
+        *)
             ;;
     esac
 fi
