@@ -25,13 +25,13 @@ static unsigned long long __count_bytes_send_local = 0;
 static unsigned long long __count_bytes_recv_local = 0;
 
 // Time for send and recv
-static unsigned long long __max_time_wait_send = 0;
-static unsigned long long __total_time_wait_send = 0;
-static unsigned long long __max_time_wait_recv = 0;
-static unsigned long long __total_time_wait_recv = 0;
+static double __max_time_wait_send = 0;
+static double __total_time_wait_send = 0;
+static double __max_time_wait_recv = 0;
+static double __total_time_wait_recv = 0;
 
-static unsigned long long __global_time_send = 0;
-static unsigned long long __global_time_recv = 0;
+static double __global_time_send = 0;
+static double __global_time_recv = 0;
 
 // Store MPI function to send and recv
 int (*real_MPI_Send)(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm) = NULL;
@@ -43,10 +43,10 @@ static unsigned long long __count_barrier_local = 0;
 static unsigned long long __count_barrier = 0;
 
 // Time for barrier
-static unsigned long long __max_time_wait_barrier = 0;
-static unsigned long long __total_time_wait_barrier = 0;
+static double __max_time_wait_barrier = 0;
+static double __total_time_wait_barrier = 0;
 
-static unsigned long long __global_time_barrier = 0;
+static double __global_time_barrier = 0;
 
 // Store MPI Barrier
 int (*real_MPI_Barrier)(MPI_Comm comm) = NULL;
@@ -71,9 +71,10 @@ static char __finalize = 0;
 static char __warning = 0;
 
 // Monitoring time
-static struct timespec __start;
-static struct timespec __end;
-static unsigned long long __process_time;
-static unsigned long long __app_time;
+static double __start;
+static double __end;
+static double __process_time;
+static double __app_time;
+static char __error_monitor_time = 0;
 
 #endif // _MPROF_H_

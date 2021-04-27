@@ -77,18 +77,22 @@ static inline void update_global_variable(void)
   MPI_Reduce(&buff_count_bytes_recv, &__count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   
   //
-  unsigned long long buff_time_send = __total_time_wait_send;
-  unsigned long long buff_time_recv = __total_time_wait_recv;
-  unsigned long long buff_time_barrier = __total_time_wait_barrier;
+  double buff_time_send = __total_time_wait_send;
+  double buff_time_recv = __total_time_wait_recv;
+  double buff_time_barrier = __total_time_wait_barrier;
   
   //
-  MPI_Reduce(&buff_time_send, &__global_time_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&buff_time_recv, &__global_time_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&buff_time_barrier, &__global_time_barrier, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_send, &__global_time_send, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_recv, &__global_time_recv, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_time_barrier, &__global_time_barrier, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
   //
-  unsigned long long buff_app_time = __process_time;
-  MPI_Reduce(&buff_app_time, &__app_time, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0, MPI_COMM_WORLD);
+  double buff_app_time = __process_time;
+  MPI_Reduce(&buff_app_time, &__app_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+  //
+  char buff_error_monitor_time = __error_monitor_time;
+  MPI_Reduce(&buff_error_monitor_time, &__error_monitor_time, 1, MPI_CHAR, MPI_MAX, 0, MPI_COMM_WORLD);
 }
 
 //
@@ -105,27 +109,27 @@ static void fprintf_bignumber(unsigned long long n)
 }
 
 //
-static void fprintf_time(unsigned long long time)
+static void fprintf_time(double time)
 {
-  if (time < 1000)
+  if (time <= 0.000001)
     {
-      fprintf(stderr, "%lld ns", time);
+      fprintf(stderr, "%.f ns", (time * 1000000000));
     }
-  else if (time < 1000000)
+  else if (time <= 0.001)
     {
-      fprintf(stderr, "%lld us", time / 1000);
+      fprintf(stderr, "%.f us", (time * 1000000));
     }
-  else if (time < 1000000000)
+  else if (time <= 1.0)
     {
-      fprintf(stderr, "%lld ms", time / 1000000);
+      fprintf(stderr, "%.f ms", (time * 1000));
     }
-  else if (time < 1000000000000)
+  else if (time <= 60)
     {
-      fprintf(stderr, "%lld s", time / 1000000000);
+      fprintf(stderr, "%.3f s", (time));
     }
   else
     {
-      fprintf(stderr, "%lld m %lld s", time / 1000000000000, time % (unsigned long long)1000000000000);
+      fprintf(stderr, "%lld m %lld s", (unsigned long long)(time / 60), (unsigned long long)((unsigned long long)time % 60));
     }
 }
 
@@ -142,14 +146,14 @@ static inline void fprintf_global_summary()
   fprintf(stderr, MPROF "GLOBAL SUMMARY:\n");
 }
 
-static inline void fprintf_global_app_time(unsigned long long time)
+static inline void fprintf_global_app_time(double time)
 {
   fprintf(stderr, MPROF "              running: ");
   fprintf_time(time);
   fprintf(stderr, "\n");
 }
 
-static inline void fprintf_global_msg_send(unsigned long long count, unsigned long long bytes, unsigned long long time)
+static inline void fprintf_global_msg_send(unsigned long long count, unsigned long long bytes, double time)
 {
   fprintf(stderr, MPROF "         message sent: ");
   fprintf_bignumber(count);
@@ -160,7 +164,7 @@ static inline void fprintf_global_msg_send(unsigned long long count, unsigned lo
   fprintf(stderr, " in total\n");
 }
 
-static inline void fprintf_global_msg_recv(unsigned long long count, unsigned long long bytes, unsigned long long time)
+static inline void fprintf_global_msg_recv(unsigned long long count, unsigned long long bytes, double time)
 {
   fprintf(stderr, MPROF "         message recv: ");
   fprintf_bignumber(count);
@@ -171,7 +175,7 @@ static inline void fprintf_global_msg_recv(unsigned long long count, unsigned lo
   fprintf(stderr, " in total\n");
 }
 
-static inline void fprintf_global_barrier(unsigned long long count, unsigned long long time)
+static inline void fprintf_global_barrier(unsigned long long count, double time)
 {
   fprintf(stderr, MPROF "    barrier(s) passed: ");
   fprintf_bignumber(count);
@@ -194,14 +198,14 @@ static inline void fprintf_local_summary(int rank)
   fprintf(stderr, "):\n");
 }
 
-static inline void fprintf_local_process_time(unsigned long long time)
+static inline void fprintf_local_process_time(double time)
 {
   fprintf(stderr, MPROF "              running: ");
   fprintf_time(time);
   fprintf(stderr, "\n");
 }
 
-static inline void fprintf_local_msg_send(unsigned long long count, unsigned long long bytes, unsigned long long time, unsigned long long max)
+static inline void fprintf_local_msg_send(unsigned long long count, unsigned long long bytes, double time, double max)
 {
   fprintf(stderr, MPROF "         message sent: ");
   fprintf_bignumber(count);
@@ -214,7 +218,7 @@ static inline void fprintf_local_msg_send(unsigned long long count, unsigned lon
   fprintf(stderr, ")\n");
 }
 
-static inline void fprintf_local_msg_recv(unsigned long long count, unsigned long long bytes, unsigned long long time, unsigned long long max)
+static inline void fprintf_local_msg_recv(unsigned long long count, unsigned long long bytes, double time, double max)
 {
   fprintf(stderr, MPROF "         message recv: ");
   fprintf_bignumber(count);
@@ -227,7 +231,7 @@ static inline void fprintf_local_msg_recv(unsigned long long count, unsigned lon
   fprintf(stderr, ")\n");
 }
 
-static inline void fprintf_local_barrier(unsigned long long count, unsigned long long time, unsigned long long max)
+static inline void fprintf_local_barrier(unsigned long long count, double time, double max)
 {
   fprintf(stderr, MPROF "    barrier(s) passed: ");
   fprintf_bignumber(count);
@@ -397,7 +401,7 @@ int MPI_Init(int *argc, char ***argv)
     }
 
   //
-  clock_gettime(CLOCK_MONOTONIC_RAW, &__start);
+  __start = MPI_Wtime();
   
   //
   return ret;
@@ -447,21 +451,21 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
   __list_of_process_send_to[dest] = 1;
 
   //
-  struct timespec start, end;
+  double start, end;
 
   //
-  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  start = MPI_Wtime();
   
   // Call MPI_Send
   int ret = real_MPI_Send(buf, count, datatype, dest, tag, comm);
 
   //
-  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  end = MPI_Wtime();
 
   //
-  if (end.tv_nsec > start.tv_nsec)
+  if (end - start >= 0.0)
     {
-      unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
+      double elapsed = end - start;
 
       if (elapsed > __max_time_wait_send)
         {
@@ -518,21 +522,21 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
   __list_of_process_recv_from[source] = 1;
 
   //
-  struct timespec start, end;
+  double start, end;
 
   //
-  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  start = MPI_Wtime();
   
   // Call MPI_Recv
   int ret = real_MPI_Recv(buf, count, datatype, source, tag, comm, status);
 
   //
-  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  end = MPI_Wtime();
 
   //
-  if (end.tv_nsec > start.tv_nsec)
+  if (end - start >= 0.0)
     {
-      unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
+      double elapsed = end - start;
 
       if (elapsed > __max_time_wait_recv)
         {
@@ -582,21 +586,21 @@ int MPI_Barrier(MPI_Comm comm)
   __count_barrier_local++;
   
   //
-  struct timespec start, end;
+  double start, end;
 
   //
-  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  start = MPI_Wtime();
   
   // Call true MPI_Barrier
   int ret = real_MPI_Barrier(comm);
 
   //
-  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  end = MPI_Wtime();
 
   //
-  if (end.tv_nsec > start.tv_nsec)
+  if (end - start >= 0.0)
     {
-      unsigned long long elapsed = end.tv_nsec - start.tv_nsec;
+      double elapsed = end - start;
 
       if (elapsed > __max_time_wait_barrier)
         {
@@ -612,12 +616,17 @@ int MPI_Barrier(MPI_Comm comm)
 int MPI_Finalize(void)
 {
   // Get time of MPI process
-  clock_gettime(CLOCK_MONOTONIC_RAW, &__end);
+  __end = MPI_Wtime();
 
-  if (__end.tv_nsec < __start.tv_nsec)
-    __process_time = 0;
+  if (__end - __start < 0.0)
+    {
+      __process_time = 0.0;
+      __error_monitor_time = 1;
+    }
   else
-    __process_time = __end.tv_nsec - __start.tv_nsec;
+    {
+      __process_time = __end - __start;
+    }
 
   //
   if (__debug)
@@ -666,18 +675,18 @@ int MPI_Finalize(void)
   unsigned long long *buff_count_bytes_send = NULL;
   unsigned long long *buff_count_bytes_recv = NULL;
 
-  unsigned long long *buff_total_time_wait_send = NULL;
-  unsigned long long *buff_total_time_wait_recv = NULL;
-  unsigned long long *buff_total_time_wait_barrier = NULL;
+  double *buff_total_time_wait_send = NULL;
+  double *buff_total_time_wait_recv = NULL;
+  double *buff_total_time_wait_barrier = NULL;
 
-  unsigned long long *buff_max_time_wait_send = NULL;
-  unsigned long long *buff_max_time_wait_recv = NULL;
-  unsigned long long *buff_max_time_wait_barrier = NULL;
+  double *buff_max_time_wait_send = NULL;
+  double *buff_max_time_wait_recv = NULL;
+  double *buff_max_time_wait_barrier = NULL;
 
   unsigned long long *buff_list_send_to = NULL;
   unsigned long long *buff_list_recv_from = NULL;
 
-  unsigned long long *buff_process_time = NULL;
+  double *buff_process_time = NULL;
 
   // Allocate array only for process 0
   if (__real_rank == 0)
@@ -690,18 +699,18 @@ int MPI_Finalize(void)
       buff_count_bytes_send = malloc(sizeof(unsigned long long) * __real_size);
       buff_count_bytes_recv = malloc(sizeof(unsigned long long) * __real_size);
 
-      buff_total_time_wait_send  = malloc(sizeof(unsigned long long) * __real_size);
-      buff_total_time_wait_recv  = malloc(sizeof(unsigned long long) * __real_size);
-      buff_total_time_wait_barrier  = malloc(sizeof(unsigned long long) * __real_size);
+      buff_total_time_wait_send  = malloc(sizeof(double) * __real_size);
+      buff_total_time_wait_recv  = malloc(sizeof(double) * __real_size);
+      buff_total_time_wait_barrier  = malloc(sizeof(double) * __real_size);
       
-      buff_max_time_wait_send  = malloc(sizeof(unsigned long long) * __real_size);
-      buff_max_time_wait_recv  = malloc(sizeof(unsigned long long) * __real_size);
-      buff_max_time_wait_barrier  = malloc(sizeof(unsigned long long) * __real_size);
+      buff_max_time_wait_send  = malloc(sizeof(double) * __real_size);
+      buff_max_time_wait_recv  = malloc(sizeof(double) * __real_size);
+      buff_max_time_wait_barrier  = malloc(sizeof(double) * __real_size);
 
       buff_list_send_to = malloc(sizeof(unsigned long long *) * __real_size * __real_size);
       buff_list_recv_from = malloc(sizeof(unsigned long long *) * __real_size * __real_size);
 
-      buff_process_time = malloc(sizeof(unsigned long long) * __real_size);
+      buff_process_time = malloc(sizeof(double) * __real_size);
     }
 
   // Recup all information
@@ -713,18 +722,18 @@ int MPI_Finalize(void)
   MPI_Gather(&__count_bytes_send_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(&__count_bytes_recv_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
-  MPI_Gather(&__total_time_wait_send, 1, MPI_UNSIGNED_LONG_LONG, buff_total_time_wait_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  MPI_Gather(&__total_time_wait_recv, 1, MPI_UNSIGNED_LONG_LONG, buff_total_time_wait_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  MPI_Gather(&__total_time_wait_barrier, 1, MPI_UNSIGNED_LONG_LONG, buff_total_time_wait_barrier, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__total_time_wait_send, 1, MPI_DOUBLE, buff_total_time_wait_send, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__total_time_wait_recv, 1, MPI_DOUBLE, buff_total_time_wait_recv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__total_time_wait_barrier, 1, MPI_DOUBLE, buff_total_time_wait_barrier, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  MPI_Gather(&__max_time_wait_send, 1, MPI_UNSIGNED_LONG_LONG, buff_max_time_wait_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  MPI_Gather(&__max_time_wait_recv, 1, MPI_UNSIGNED_LONG_LONG, buff_max_time_wait_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  MPI_Gather(&__max_time_wait_barrier, 1, MPI_UNSIGNED_LONG_LONG, buff_max_time_wait_barrier, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__max_time_wait_send, 1, MPI_DOUBLE, buff_max_time_wait_send, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__max_time_wait_recv, 1, MPI_DOUBLE, buff_max_time_wait_recv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__max_time_wait_barrier, 1, MPI_DOUBLE, buff_max_time_wait_barrier, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   MPI_Gather(__list_of_process_send_to, __real_size, MPI_UNSIGNED_LONG_LONG, buff_list_send_to, __real_size, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(__list_of_process_recv_from, __real_size, MPI_UNSIGNED_LONG_LONG, buff_list_recv_from, __real_size, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
-  MPI_Gather(&__process_time, 1, MPI_UNSIGNED_LONG_LONG, buff_process_time, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__process_time, 1, MPI_DOUBLE, buff_process_time, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // Print only with process 0
   if (__real_rank == 0)
@@ -824,6 +833,10 @@ int MPI_Finalize(void)
 
           // In wait for barrier
           fprintf_process_in_wait(__real_size - __count_process_hit_barrier);
+        }
+      else if (__error_monitor_time != 0)
+        {
+          fprintf(stderr, MPROF "             time: errors occur when process time was monitored\n");
         }
       else
         {
