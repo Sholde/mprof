@@ -67,6 +67,14 @@ static inline void update_global_variable(void)
   MPI_Reduce(&buff_count_recv, &__count_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   __count_barrier = __count_barrier_local;
   MPI_Reduce(&buff_count_warning, &__count_warning, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  //
+  unsigned long long buff_count_bytes_send = __count_bytes_send_local;
+  unsigned long long buff_count_bytes_recv = __count_bytes_recv_local;
+
+  //
+  MPI_Reduce(&buff_count_bytes_send, &__count_bytes_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&buff_count_bytes_recv, &__count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   
   //
   unsigned long long buff_time_send = __total_time_wait_send;
@@ -141,20 +149,24 @@ static inline void fprintf_global_app_time(unsigned long long time)
   fprintf(stderr, "\n");
 }
 
-static inline void fprintf_global_msg_send(unsigned long long count, unsigned long long time)
+static inline void fprintf_global_msg_send(unsigned long long count, unsigned long long bytes, unsigned long long time)
 {
   fprintf(stderr, MPROF "         message sent: ");
   fprintf_bignumber(count);
-  fprintf(stderr, " - waiting ");
+  fprintf(stderr, " msg take ");
+  fprintf_bignumber(bytes);
+  fprintf(stderr, " bytes - waiting ");
   fprintf_time(time);
   fprintf(stderr, " in total\n");
 }
 
-static inline void fprintf_global_msg_recv(unsigned long long count, unsigned long long time)
+static inline void fprintf_global_msg_recv(unsigned long long count, unsigned long long bytes, unsigned long long time)
 {
   fprintf(stderr, MPROF "         message recv: ");
   fprintf_bignumber(count);
-  fprintf(stderr, " - waiting ");
+  fprintf(stderr, " msg take ");
+  fprintf_bignumber(bytes);
+  fprintf(stderr, " bytes - waiting ");
   fprintf_time(time);
   fprintf(stderr, " in total\n");
 }
@@ -189,22 +201,26 @@ static inline void fprintf_local_process_time(unsigned long long time)
   fprintf(stderr, "\n");
 }
 
-static inline void fprintf_local_msg_send(unsigned long long count, unsigned long long time, unsigned long long max)
+static inline void fprintf_local_msg_send(unsigned long long count, unsigned long long bytes, unsigned long long time, unsigned long long max)
 {
   fprintf(stderr, MPROF "         message sent: ");
   fprintf_bignumber(count);
-  fprintf(stderr, " - waiting ");
+  fprintf(stderr, " msg take ");
+  fprintf_bignumber(bytes);
+  fprintf(stderr, " bytes - waiting ");
   fprintf_time(time);
   fprintf(stderr, " (max: ");
   fprintf_time(max);
   fprintf(stderr, ")\n");
 }
 
-static inline void fprintf_local_msg_recv(unsigned long long count, unsigned long long time, unsigned long long max)
+static inline void fprintf_local_msg_recv(unsigned long long count, unsigned long long bytes, unsigned long long time, unsigned long long max)
 {
   fprintf(stderr, MPROF "         message recv: ");
   fprintf_bignumber(count);
-  fprintf(stderr, " - waiting ");
+  fprintf(stderr, " msg take ");
+  fprintf_bignumber(bytes);
+  fprintf(stderr, " bytes - waiting ");
   fprintf_time(time);
   fprintf(stderr, " (max: ");
   fprintf_time(max);
@@ -420,6 +436,11 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
     }
 
   //
+  int buff_size = 0;
+  MPI_Type_size(datatype, &buff_size);
+  __count_bytes_send_local += count * buff_size;
+
+  //
   __count_send_local++;
 
   //
@@ -485,6 +506,11 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
             }
         }
     }
+
+  //
+  int buff_size = 0;
+  MPI_Type_size(datatype, &buff_size);
+  __count_bytes_recv_local += count * buff_size;
 
   //
   __count_recv_local++;
@@ -618,8 +644,8 @@ int MPI_Finalize(void)
       //
       fprintf_global_summary();
       fprintf_global_app_time(__app_time);
-      fprintf_global_msg_send(__count_send, __global_time_send);
-      fprintf_global_msg_recv(__count_recv, __global_time_recv);
+      fprintf_global_msg_send(__count_send, __count_bytes_send, __global_time_send);
+      fprintf_global_msg_recv(__count_recv, __count_bytes_recv, __global_time_recv);
       fprintf_global_barrier(__count_barrier, __global_time_barrier);
 
       // Warning
@@ -639,6 +665,9 @@ int MPI_Finalize(void)
   unsigned long long *buff_count_recv = NULL;
   unsigned long long *buff_count_barrier = NULL;
   unsigned long long *buff_count_warning = NULL;
+
+  unsigned long long *buff_count_bytes_send = NULL;
+  unsigned long long *buff_count_bytes_recv = NULL;
 
   unsigned long long *buff_total_time_wait_send = NULL;
   unsigned long long *buff_total_time_wait_recv = NULL;
@@ -661,6 +690,9 @@ int MPI_Finalize(void)
       buff_count_barrier = malloc(sizeof(unsigned long long) * __real_size);
       buff_count_warning = malloc(sizeof(unsigned long long) * __real_size);
 
+      buff_count_bytes_send = malloc(sizeof(unsigned long long) * __real_size);
+      buff_count_bytes_recv = malloc(sizeof(unsigned long long) * __real_size);
+
       buff_total_time_wait_send  = malloc(sizeof(unsigned long long) * __real_size);
       buff_total_time_wait_recv  = malloc(sizeof(unsigned long long) * __real_size);
       buff_total_time_wait_barrier  = malloc(sizeof(unsigned long long) * __real_size);
@@ -680,6 +712,9 @@ int MPI_Finalize(void)
   MPI_Gather(&__count_recv_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(&__count_barrier_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_barrier, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(&__count_warning_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_warning, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+  MPI_Gather(&__count_bytes_send_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__count_bytes_recv_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
   MPI_Gather(&__total_time_wait_send, 1, MPI_UNSIGNED_LONG_LONG, buff_total_time_wait_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(&__total_time_wait_recv, 1, MPI_UNSIGNED_LONG_LONG, buff_total_time_wait_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
@@ -705,8 +740,8 @@ int MPI_Finalize(void)
               // Print local
               fprintf_local_summary(i);
               fprintf_local_process_time(buff_process_time[i]);
-              fprintf_local_msg_send(buff_count_send[i], buff_total_time_wait_send[i], buff_max_time_wait_send[i]);
-              fprintf_local_msg_recv(buff_count_recv[i], buff_total_time_wait_recv[i], buff_max_time_wait_recv[i]);
+              fprintf_local_msg_send(buff_count_send[i], buff_count_bytes_send[i], buff_total_time_wait_send[i], buff_max_time_wait_send[i]);
+              fprintf_local_msg_recv(buff_count_recv[i], buff_count_bytes_recv[i], buff_total_time_wait_recv[i], buff_max_time_wait_recv[i]);
               fprintf_local_barrier(buff_count_barrier[i], buff_total_time_wait_barrier[i], buff_max_time_wait_barrier[i]);
 
               // List process sent to
@@ -761,6 +796,9 @@ int MPI_Finalize(void)
       free(buff_count_recv);
       free(buff_count_barrier);
       free(buff_count_warning);
+
+      free(buff_count_bytes_send);
+      free(buff_count_bytes_recv);
 
       free(buff_total_time_wait_send);
       free(buff_total_time_wait_recv);

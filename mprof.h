@@ -18,6 +18,12 @@ static unsigned long long __count_recv = 0;
 static unsigned long long __count_send_local = 0;
 static unsigned long long __count_recv_local = 0;
 
+// count bytes send and recv
+static unsigned long long __count_bytes_send = 0;
+static unsigned long long __count_bytes_recv = 0;
+static unsigned long long __count_bytes_send_local = 0;
+static unsigned long long __count_bytes_recv_local = 0;
+
 // Time for send and recv
 static unsigned long long __max_time_wait_send = 0;
 static unsigned long long __total_time_wait_send = 0;
