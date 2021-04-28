@@ -20,7 +20,7 @@ mprof - MPI Profiler
 
 **mprof** [*`-v`*|*`-h`*|*`-l`*]
 
-**mprof** [*`--version`*|*`--help`*|*`--list`*]
+**mprof** [*`--version`*|*`--help`*|*`--list`*|*`clean`*]
 
 
 # DESCRIPTION
@@ -44,6 +44,9 @@ Note that **mprof** must be before your *mpi command line*.
 `--options=...`
 : Allow user to put environment variable options directly in the command
   line. Note that you must **remove** hyphen `--`.
+  
+`--clean`
+: Clean all *mprof* files.
 
 # ENVIRONMENT VARIABLE
 

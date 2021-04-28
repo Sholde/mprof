@@ -31,6 +31,13 @@ if [ "${#}" -ne "0" ] ; then
             exit 0
             ;;
 
+        --clean)
+            for suffix in out profile ; do
+                rm -Rf mprof_[0-9]*.$suffix
+            done
+            exit 0
+            ;;
+
         --options=*)
             # Remove --options=
             options=${1#*=}

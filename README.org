@@ -61,6 +61,7 @@ $ mprof mpirun -np 4 ./a.out
    - ~-l, --list~ print the list of environment variable options
    - ~--options=...~ allow you to put environment variable options directly in the command
    line. Note that you must *remove* hyphen ~--~.
+   - ~--clean~ clean all *mprof* files.
 
 
 * Environment variable
