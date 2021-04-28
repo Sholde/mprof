@@ -46,20 +46,27 @@ line.
 Note that you must \f[B]remove\f[R] hyphen \f[C]--\f[R].
 .SH ENVIRONMENT VARIABLE
 .PP
-\f[B]mprof\f[R] read the \f[I]environment variable\f[R] nammed
+\f[B]mprof\f[R] read the \f[I]environment variable\f[R] named
 \f[I]MPROF_OPTIONS\f[R] where you can put this list of options:
 .TP
 \f[B]\f[CB]--verbose\f[B]\f[R]
-Display all call of \f[I]MPI\f[R].
+Display in a file named \f[I]mprof_ProcessId.out\f[R], all call of
+\f[I]MPI\f[R].
 .TP
 \f[B]\f[CB]--barrier\f[B]\f[R]
-Display all call of \f[I]MPI_Barrier\f[R].
+Display in a file named \f[I]mprof_ProcessId.out\f[R], all call of
+\f[I]MPI_Barrier\f[R].
+.TP
+\f[B]\f[CB]--init\f[B]\f[R]
+Display in \f[I]stderr\f[R] all call of \f[I]MPI_Init\f[R] with all
+argument.
 .TP
 \f[B]\f[CB]--finalize\f[B]\f[R]
-Display all call of \f[I]MPI_Finalize\f[R].
+Display in \f[I]stderr\f[R] all call of \f[I]MPI_Finalize\f[R].
 .TP
 \f[B]\f[CB]--profile\f[B]\f[R]
-Display all information of profiling, like contiguous sends.
+Display in a file named \f[I]mprof_ProcessId.profile\f[R], all
+information of profiling, like contiguous sends.
 .SH EXAMPLES
 .TP
 \f[B]\f[CB]mprof -h\f[B]\f[R]
@@ -71,9 +78,9 @@ Run the profiling in your application \f[I]a.out\f[R].
 \f[B]\f[CB]MPROF_OPTIONS=\[dq]--finalize\[dq] mprof mpiexec -np 4 ./a.out\f[B]\f[R]
 Display in addition when each processus call \f[I]MPI_Finalize\f[R].
 .TP
-\f[B]\f[CB]mprof --options=finalize mpiexec -np 4 ./a.out\f[B]\f[R]
-Same as above but we use the command line option to specify the value of
-environment variable.
+\f[B]\f[CB]mprof --options=profile mpiexec -np 4 ./a.out\f[B]\f[R]
+Specify the option \f[I]\[en]profile\f[R] of environment variable for
+the wrapper and generate a file with all profiling information.
 .SH RETURN
 .PP
 Return \f[I]0\f[R] on success.

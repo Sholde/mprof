@@ -66,16 +66,20 @@ $ mprof mpirun -np 4 ./a.out
 * Environment variable
 
    *mprof* allows you to specify different options in an environment variable,
-   nammed *MPROF_OPTIONS*.
+   named *MPROF_OPTIONS*.
+
+   NOTE: the number of file created correspond to the number of *MPI*
+   process. We advise you to run *mprof* with a reduce number of process when
+   you use an environment variable option.
 
 ** List of options
 
-   - ~--verbose~ print all *MPI* functions interposed with the process rank of
-     the caller
-   - ~--barrier~ print only *MPI_Barrier* call
-   - ~--finalize~ print only *MPI_Finalize* call
-   - ~--profile~ print only profiling information, it is a verbose mode for
-     profiling information
+   - ~--verbose~ print in a file named *mprof_ProcessId.out*, all call of *MPI*
+   - ~--barrier~ print in a file named *mprof_ProcessId.out*, all call of *MPI_Barrier*
+   - ~--init~ print in *stderr* all call of *MPI_Init* with all argument
+   - ~--finalize~ print in *stderr* all call of *MPI_Finalize*
+   - ~--profile~ print in a file named *mprof_ProcessId.profile*, all
+     information of profiling, like contiguous sends
 
 ** Example of usage with deadlock
 

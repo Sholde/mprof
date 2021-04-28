@@ -79,6 +79,7 @@ static unsigned long long __count_warning = 0;
 static char __debug = 0;
 static char __verbose = 0;
 static char __barrier = 0;
+static char __init = 0;
 static char __finalize = 0;
 static char __profile = 0;
 
@@ -90,5 +91,8 @@ static double __app_time = 0.0;
 static double __mpi_time_local = 0.0;
 static double __mpi_time = 0.0;
 static char __error_monitor_time = 0;
+
+//
+static FILE *__file = NULL;
 
 #endif // _MPROF_H_

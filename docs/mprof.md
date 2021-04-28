@@ -47,20 +47,23 @@ Note that **mprof** must be before your *mpi command line*.
 
 # ENVIRONMENT VARIABLE
 
-**mprof** read the *environment variable* nammed *MPROF_OPTIONS* where you can
+**mprof** read the *environment variable* named *MPROF_OPTIONS* where you can
 put this list of options:
 
 `--verbose`
-: Display all call of *MPI*.
+: Display in a file named *mprof_ProcessId.out*, all call of *MPI*.
 
 `--barrier`
-: Display all call of *MPI_Barrier*.
+: Display in a file named *mprof_ProcessId.out*, all call of *MPI_Barrier*.
+
+`--init`
+: Display in *stderr* all call of *MPI_Init* with all argument.
 
 `--finalize`
-: Display all call of *MPI_Finalize*.
+: Display in *stderr* all call of *MPI_Finalize*.
 
 `--profile`
-: Display all information of profiling, like contiguous sends.
+: Display in a file named *mprof_ProcessId.profile*, all information of profiling, like contiguous sends.
 
 # EXAMPLES
 
@@ -73,9 +76,10 @@ put this list of options:
 `MPROF_OPTIONS="--finalize" mprof mpiexec -np 4 ./a.out`
 : Display in addition when each processus call *MPI_Finalize*.
 
-`mprof --options=finalize mpiexec -np 4 ./a.out`
-: Same as above but we use the command line option to specify the value of
-  environment variable.
+`mprof --options=profile mpiexec -np 4 ./a.out`
+: Specify the option *--profile* of environment variable for the wrapper and
+  generate a file with all profiling information.
+
 
 # RETURN
 

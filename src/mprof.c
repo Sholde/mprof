@@ -1,9 +1,13 @@
+// Get the next symbol
 #define _GNU_SOURCE
+#include <dlfcn.h>
+
+// standard
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dlfcn.h>
-#include <time.h>
+
+// mpi
 #include <mpi.h>
 
 #include "mprof.h"
@@ -32,6 +36,11 @@ __attribute__((constructor)) void init(void)
           __debug = 1;
           __barrier = 1;
         }
+      else if (strcmp(env, "--init") == 0)
+        {
+          __debug = 1;
+          __init = 1;
+        }
       else if (strcmp(env, "--finalize") == 0)
         {
           __debug = 1;
@@ -55,6 +64,38 @@ __attribute__((destructor)) void finalize(void)
  *          HELPER FUNCTION           *
  *                                    *
  **************************************/
+
+//
+static inline void fprintf_hello(void)
+{
+  // Printing hello
+  fprintf(stderr, MPROF "mprof, a MPI profiler tool\n");
+  fprintf(stderr, MPROF "mprof (MPROF) 0.0.1\n");
+  
+  if (__debug)
+    {
+      if (__verbose)
+        {
+          fprintf(stderr, MPROF "Options: --verbose\n");
+        }
+      else if (__barrier)
+        {
+          fprintf(stderr, MPROF "Options: --barrier\n");
+        }
+      else if (__finalize)
+        {
+          fprintf(stderr, MPROF "Options: --finalize\n");
+        }
+      else if (__profile)
+        {
+          fprintf(stderr, MPROF "Options: --profile\n");
+        }
+    }
+  else
+    {
+      fprintf(stderr, MPROF "Options: No options\n");
+    }
+}
 
 //
 static inline void update_global_variable(void)
@@ -461,16 +502,57 @@ int MPI_Init(int *argc, char ***argv)
   __list_of_process_recv_from = malloc(sizeof(unsigned long long) * __real_size);
   memset(__list_of_process_recv_from, 0, sizeof(unsigned long long) * __real_size);
 
-  //
+  // Printing hello
+  if (__real_rank == 0)
+    fprintf_hello();
+
+  // Waiting all process
+  real_MPI_Barrier(MPI_COMM_WORLD);
+
+  // Printing debug
   if (__debug)
     {
       if (__verbose)
         {
-          fprintf(stderr, MPROF "Process %d enter in MPI_init\n", __real_rank);
+          // Create the buffer wich contain the name of the file
+          char name[64];
+          snprintf(name, sizeof(name), "mprof_%d.out", __real_rank);
+
+          // Open the file
+          __file = fopen(name, "wr");
+
+          fprintf(__file, MPROF "Process %d enter in MPI_init with argc = %d and argv =", __real_rank, *argc);
+
+          for (int i = 0; i < *argc; i++)
+            fprintf(__file, " %s", *argv[i]);
+
+          fprintf(__file, "\n");
+        }
+      else if (__init)
+        {
+          fprintf(stderr, MPROF "Process %d enter in MPI_init with argc = %d and argv =", __real_rank, *argc);
+
+          for (int i = 0; i < *argc; i++)
+            fprintf(stderr, " %s", *argv[i]);
+
+          fprintf(stderr, "\n");
+        }
+      else if (__profile)
+        {
+          // Create the buffer wich contain the name of the file
+          char name[64];
+          snprintf(name, sizeof(name), "mprof_%d.profile", __real_rank);
+
+          // Open the file
+          __file = fopen(name, "wr");
+        }
+      else
+        {
+          MPI_Abort(MPI_COMM_WORLD, 1);
         }
     }
 
-  //
+  // Starting monitoring time of process
   __start = MPI_Wtime();
   
   //
@@ -522,19 +604,20 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
     {
       if (__verbose)
         {
-          fprintf(stderr, MPROF "Process %d enter in MPI_Send, send %d %s to %d\n", __real_rank, count, buff_type_name, dest);
+          fprintf(__file, MPROF "Process %d enter in MPI_Send, send %d %s to Process %d (tag: %d)\n",
+                  __real_rank, count, buff_type_name, dest, tag);
         }
 
       if (__profile)
         {
           if (send_to_me)
             {
-              fprintf(stderr, MPROF "WARNING: Process %d send to himself\n", __real_rank);
+              fprintf(__file, MPROF "WARNING: Process %d send to himself\n", __real_rank);
             }
 
           if (contiguous_send)
             {
-              fprintf(stderr, MPROF "PROFILE: Process %d send independently elements which are contiguous to Process %d\n"
+              fprintf(__file, MPROF "PROFILE: Process %d send independently elements which are contiguous to Process %d\n"
                       MPROF         "            - Sending %d element(s) of %s\n", __real_rank, dest, count, buff_type_name);
             }
         }
@@ -600,18 +683,15 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
     {
       if (__verbose)
         {
-          int len;
-          char buff[64] = { 0 };
-          MPI_Type_get_name(datatype, buff, &len);
-          
-          fprintf(stderr, MPROF "Process %d enter in MPI_Send, recv %d %s from %d\n", __real_rank, count, buff, source);
+          fprintf(__file, MPROF "Process %d enter in MPI_Recv, recv %d %s from Process %d (tag: %d)\n",
+                  __real_rank, count, buff_type_name, source, tag);
         }
 
       if (__profile)
         {
           if (recv_from_me)
             {
-              fprintf(stderr, MPROF "WARNING: Process %d recv from himself\n", __real_rank);
+              fprintf(__file, MPROF "WARNING: Process %d recv from himself\n", __real_rank);
             }
         }
     }
@@ -658,7 +738,7 @@ int MPI_Barrier(MPI_Comm comm)
       //
       if (__verbose || __barrier)
         {
-          fprintf(stderr, MPROF "Process %d enter in MPI_Barrier\n", __real_rank);
+          fprintf(__file, MPROF "Process %d enter in MPI_Barrier\n", __real_rank);
         }
     }
 
@@ -740,10 +820,19 @@ int MPI_Finalize(void)
   if (__debug)
     {
       //
-      if (__verbose || __finalize)
+      if (__verbose)
         {
+          // Print on file
+          fprintf(__file, MPROF "Process %d enter in MPI_Finalize\n", __real_rank);
+        }
+      else if (__finalize)
+        {
+          // Print on stderr
           fprintf(stderr, MPROF "Process %d enter in MPI_Finalize\n", __real_rank);
         }
+      
+      // Close fd
+      fclose(__file);
     }
 
   // Update global variable

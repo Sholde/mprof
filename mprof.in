@@ -25,6 +25,7 @@ if [ "${#}" -ne "0" ] ; then
             echo "List of MPROF_OPTIONS options:"
             echo "    --verbose"
             echo "    --barrier"
+            echo "    --init"
             echo "    --finalize"
             echo "    --profile"
             exit 0
