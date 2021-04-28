@@ -30,8 +30,8 @@ static unsigned long long __count_bytes_send_local = 0;
 static unsigned long long __count_bytes_recv_local = 0;
 
 //
-static unsigned long long __count_send_contiguous_local = 0;
-static unsigned long long __count_send_contiguous = 0;
+static unsigned long long __count_contiguous_send_local = 0;
+static unsigned long long __count_contiguous_send = 0;
 
 static void *__send_previous_contiguous_addr = NULL;
 static unsigned long long __send_previous_shift = 0;

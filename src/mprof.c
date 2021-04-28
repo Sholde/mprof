@@ -16,8 +16,10 @@
 
 __attribute__((constructor)) void init(void)
 {
+  // Get MPROF_ENV environment variable
   char *env = getenv(MPROF_ENV);
 
+  // Check options
   if (env != NULL)
     {
       if (strcmp(env, "--verbose") == 0)
@@ -57,61 +59,56 @@ __attribute__((destructor)) void finalize(void)
 //
 static inline void update_global_variable(void)
 {
-  //
+  // Get the number of specific MPI call
   unsigned long long buff_count_send = __count_send_local;
   unsigned long long buff_count_recv = __count_recv_local;
   unsigned long long buff_count_warning = __count_warning_local;
 
-  //
   MPI_Reduce(&buff_count_send, &__count_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&buff_count_recv, &__count_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   __count_barrier = __count_barrier_local;
   MPI_Reduce(&buff_count_warning, &__count_warning, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  //
+  // Get the count in bytes of MPI comm
   unsigned long long buff_count_bytes_send = __count_bytes_send_local;
   unsigned long long buff_count_bytes_recv = __count_bytes_recv_local;
 
-  //
   MPI_Reduce(&buff_count_bytes_send, &__count_bytes_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&buff_count_bytes_recv, &__count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  //
-  unsigned long long buff_count_send_contiguous = __count_send_contiguous_local;
+  // Get the number of contiguous send
+  unsigned long long buff_count_contiguous_send = __count_contiguous_send_local;
+  MPI_Reduce(&buff_count_contiguous_send, &__count_contiguous_send, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  //
-  MPI_Reduce(&buff_count_send_contiguous, &__count_send_contiguous, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-
-  //
+  // Get the time of specific MPI call
   double buff_time_send = __total_time_wait_send;
   double buff_time_recv = __total_time_wait_recv;
   double buff_time_barrier = __total_time_wait_barrier;
-  
-  //
+
   MPI_Reduce(&buff_time_send, &__global_time_send, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   MPI_Reduce(&buff_time_recv, &__global_time_recv, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   MPI_Reduce(&buff_time_barrier, &__global_time_barrier, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
-  //
+  // Get the time of app
   double buff_app_time = __process_time;
   MPI_Reduce(&buff_app_time, &__app_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
-  //
+  // Check if time can't be evaluate
   char buff_error_monitor_time = __error_monitor_time;
   MPI_Reduce(&buff_error_monitor_time, &__error_monitor_time, 1, MPI_CHAR, MPI_MAX, 0, MPI_COMM_WORLD);
 
-  //
+  // Get the max time of each process for MPI call
   __mpi_time_local = __total_time_wait_send + __total_time_wait_recv + __total_time_wait_barrier;
   double buff_mpi_time = __mpi_time_local;
   MPI_Reduce(&buff_mpi_time, &__mpi_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
-  // Count mpi call
+  // Get the number of MPI call
   __count_mpi_call_local = __count_send_local + __count_recv_local + __count_barrier_local;
   unsigned long long buff_count_mpi_call = __count_mpi_call_local;
   MPI_Reduce(&buff_count_mpi_call, &__count_mpi_call, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 
-//
+// Print readable big number
 static void fprintf_bignumber(unsigned long long n)
 {
   if (n < 1000)
@@ -124,7 +121,7 @@ static void fprintf_bignumber(unsigned long long n)
   fprintf(stderr, ",%03lld", n % 1000);
 }
 
-//
+// Print readable time (take seconds in parameter)
 static void fprintf_time(double time)
 {
   if (time <= 0.000001)
@@ -158,7 +155,6 @@ static inline void fprintf_mprof()
 
 static inline void fprintf_global_summary()
 {
-  //
   fprintf(stderr, MPROF "GLOBAL SUMMARY:\n");
 }
 
@@ -233,15 +229,15 @@ static inline void fprintf_global_barrier(unsigned long long count, double time)
     }
 }
 
-static inline void fprintf_warning(unsigned long long count, unsigned long long send_contiguous)
+static inline void fprintf_warning(unsigned long long count, unsigned long long contiguous_send)
 {
   fprintf(stderr, MPROF "           warning(s): ");
   fprintf_bignumber(count);
 
-  if (send_contiguous)
+  if (contiguous_send)
     {
       fprintf(stderr, " - ");
-      fprintf_bignumber(send_contiguous);
+      fprintf_bignumber(contiguous_send);
       fprintf(stderr, " contiguous send");
     }
 
@@ -483,7 +479,7 @@ int MPI_Init(int *argc, char ***argv)
 
 int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
 {
-  //
+  // Check if we send a message to himself
   char send_to_me = 0;
 
   if (dest == __real_rank)
@@ -492,31 +488,30 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
       __count_warning_local++;
     }
   
-  //
+  // Get the size of buffer
   int buff_size = 0;
   MPI_Type_size(datatype, &buff_size);
   __count_bytes_send_local += count * buff_size;
 
-  //
+  // Get the string of MPI_Datatype type
   int len;
   char buff_type_name[64] = { 0 };
   MPI_Type_get_name(datatype, buff_type_name, &len);
 
-  //
-  char send_contiguous = 0;
+  // Check if we succesive send are contiguous
+  char contiguous_send = 0;
 
-  //
   if (__send_previous_contiguous_addr != NULL &&
       (unsigned long long)__send_previous_contiguous_addr + __send_previous_shift == (unsigned long long)buf)
     {
-      //
-      send_contiguous = 1;
+      // Succesive contiguous send
+      contiguous_send = 1;
 
-      //
+      // Adding to warning
       __count_warning_local++;
 
-      //
-      __count_send_contiguous_local++;
+      // Increment the count
+      __count_contiguous_send_local++;
     }
   
   __send_previous_contiguous_addr = (void *)buf;
@@ -537,7 +532,7 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
               fprintf(stderr, MPROF "WARNING: Process %d send to himself\n", __real_rank);
             }
 
-          if (send_contiguous)
+          if (contiguous_send)
             {
               fprintf(stderr, MPROF "PROFILE: Process %d send independently elements which are contiguous to Process %d\n"
                       MPROF         "            - Sending %d element(s) of %s\n", __real_rank, dest, count, buff_type_name);
@@ -545,14 +540,13 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
         }
     }
 
-
-  //
+  // Increment the count of send
   __count_send_local++;
 
-  //
+  // Adding dest to list
   __list_of_process_send_to[dest] = 1;
 
-  //
+  // Monitor time of MPI call
   double start, end;
 
   //
@@ -564,7 +558,7 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
   //
   end = MPI_Wtime();
 
-  //
+  // Check the time
   if (end - start >= 0.0)
     {
       double elapsed = end - start;
@@ -582,7 +576,7 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
 
 int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status)
 {
-  //
+  // Check if we recv a message from himself
   char recv_from_me = 0;
 
   if (source == __real_rank)
@@ -591,12 +585,12 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
       __count_warning_local++;
     }
   
-  //
+  // Get the size of buffer
   int buff_size = 0;
   MPI_Type_size(datatype, &buff_size);
   __count_bytes_recv_local += count * buff_size;
 
-  //
+  // Get the string of MPI_Datatype type
   int len;
   char buff_type_name[64] = { 0 };
   MPI_Type_get_name(datatype, buff_type_name, &len);
@@ -622,13 +616,13 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
         }
     }
 
-  //
+  // Increment the count of recv
   __count_recv_local++;
 
-  //
+  // Adding source to list
   __list_of_process_recv_from[source] = 1;
 
-  //
+  // Monitor time of MPI call
   double start, end;
 
   //
@@ -640,7 +634,7 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, M
   //
   end = MPI_Wtime();
 
-  //
+  // Check the time
   if (end - start >= 0.0)
     {
       double elapsed = end - start;
@@ -671,28 +665,34 @@ int MPI_Barrier(MPI_Comm comm)
   //
   if (__real_rank == 0)
     {
-      //
+      // Increment process which it barrier
       __count_process_hit_barrier++;
 
       int buff;
       
       for (int i = 1; i < __real_size; i++)
         {
+          // Waiting a msg of process i to ensure that it pass hit the barrier
           real_MPI_Recv(&buff, 1, MPI_INT, i, 0, comm, MPI_STATUS_IGNORE);
+
+          // Increment process which it barrier
           __count_process_hit_barrier++;
 
         }
+
+      // Reset
       __count_process_hit_barrier = 0;
     }
   else
     {
+      // Sending a msg to process 0 to say it that we hit the barrier
       real_MPI_Send(&__real_rank, 1, MPI_INT, 0, 0, comm);
     }
-  
-  //
+
+  // Increment the count of barrier
   __count_barrier_local++;
   
-  //
+  // Monitor time of MPI call
   double start, end;
 
   //
@@ -704,7 +704,7 @@ int MPI_Barrier(MPI_Comm comm)
   //
   end = MPI_Wtime();
 
-  //
+  // Check the time
   if (end - start >= 0.0)
     {
       double elapsed = end - start;
@@ -725,6 +725,7 @@ int MPI_Finalize(void)
   // Get time of MPI process
   __end = MPI_Wtime();
 
+  // Check if time is correct
   if (__end - __start < 0.0)
     {
       __process_time = 0.0;
@@ -754,7 +755,7 @@ int MPI_Finalize(void)
       // mprof
       fprintf_mprof();
 
-      //
+      // Print
       fprintf_global_summary();
       fprintf_running_time(__app_time);
       fprintf_mpi_summary(__mpi_time, __count_mpi_call);
@@ -765,7 +766,7 @@ int MPI_Finalize(void)
       // Warning
       if (__count_warning)
         {
-          fprintf_warning(__count_warning, __count_send_contiguous);
+          fprintf_warning(__count_warning, __count_contiguous_send);
         }
 
       //
@@ -783,7 +784,7 @@ int MPI_Finalize(void)
   unsigned long long *buff_count_bytes_send = NULL;
   unsigned long long *buff_count_bytes_recv = NULL;
 
-  unsigned long long *buff_count_send_contiguous = NULL;
+  unsigned long long *buff_count_contiguous_send = NULL;
 
   double *buff_total_time_wait_send = NULL;
   double *buff_total_time_wait_recv = NULL;
@@ -812,7 +813,7 @@ int MPI_Finalize(void)
       buff_count_bytes_send = malloc(sizeof(unsigned long long) * __real_size);
       buff_count_bytes_recv = malloc(sizeof(unsigned long long) * __real_size);
 
-      buff_count_send_contiguous = malloc(sizeof(unsigned long long) * __real_size);
+      buff_count_contiguous_send = malloc(sizeof(unsigned long long) * __real_size);
 
       buff_total_time_wait_send  = malloc(sizeof(double) * __real_size);
       buff_total_time_wait_recv  = malloc(sizeof(double) * __real_size);
@@ -840,7 +841,7 @@ int MPI_Finalize(void)
   MPI_Gather(&__count_bytes_send_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(&__count_bytes_recv_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_bytes_recv, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
-  MPI_Gather(&__count_send_contiguous_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_send_contiguous, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&__count_contiguous_send_local, 1, MPI_UNSIGNED_LONG_LONG, buff_count_contiguous_send, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
   MPI_Gather(&__total_time_wait_send, 1, MPI_DOUBLE, buff_total_time_wait_send, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
   MPI_Gather(&__total_time_wait_recv, 1, MPI_DOUBLE, buff_total_time_wait_recv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -869,7 +870,7 @@ int MPI_Finalize(void)
           // Test if we need to print info
           if (buff_count_send[i] || buff_count_recv[i] || buff_count_barrier[i] || buff_count_warning[i])
             {
-              //
+              // Print
               fprintf_running_time(buff_process_time[i]);
               fprintf_mpi_summary(buff_mpi_time[i], buff_count_mpi_call[i]);
               fprintf_local_msg_send(buff_count_send[i], buff_count_bytes_send[i], buff_total_time_wait_send[i], buff_max_time_wait_send[i]);
@@ -909,7 +910,7 @@ int MPI_Finalize(void)
               // Warning
               if (buff_count_warning[i])
                 {
-                  fprintf_warning(buff_count_warning[i], buff_count_send_contiguous[i]);
+                  fprintf_warning(buff_count_warning[i], buff_count_contiguous_send[i]);
                 }
 
               // Separate process
@@ -937,7 +938,7 @@ int MPI_Finalize(void)
       free(buff_count_bytes_send);
       free(buff_count_bytes_recv);
 
-      free(buff_count_send_contiguous);
+      free(buff_count_contiguous_send);
 
       free(buff_total_time_wait_send);
       free(buff_total_time_wait_recv);
