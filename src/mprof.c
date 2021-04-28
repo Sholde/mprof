@@ -501,8 +501,8 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
   // Check if we succesive send are contiguous
   char contiguous_send = 0;
 
-  if (__send_previous_contiguous_addr != NULL &&
-      (unsigned long long)__send_previous_contiguous_addr + __send_previous_shift == (unsigned long long)buf)
+  if (__send_previous_contiguous_addr != 0 &&
+      __send_previous_contiguous_addr + __send_previous_shift == (unsigned long long)buf)
     {
       // Succesive contiguous send
       contiguous_send = 1;
@@ -514,7 +514,7 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int ta
       __count_contiguous_send_local++;
     }
   
-  __send_previous_contiguous_addr = (void *)buf;
+  __send_previous_contiguous_addr = (unsigned long long)buf;
   __send_previous_shift = count * buff_size;
 
   //
