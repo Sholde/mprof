@@ -1,22 +1,27 @@
 #!/bin/sh
 
 # Handle mprof options
-if [ "$#" -ne "0" ] ; then
-    case $1 in
+if [ "${#}" -ne "0" ] ; then
+    case ${1} in
         -h | --help)
+            # Print help
             echo "This is the help of mprof"
             echo "  -v, --version  Display the version"
             echo "  -h, --help     Display this help"
+            echo "  -l, --list     Display the list of environment variable options"
+            echo "  --options=...  Allow users to put environment variable options directly in the command line. Note that you must *remove* hyphen --."
             exit 0
             ;;
 
         -v | --version)
+            # Print version
             echo "mprof (MPROF) 0.0.1"
             echo "GNU General Public License v3.0"
             exit 0
             ;;
 
         -l | --list)
+            # Print list of environment variable options
             echo "List of MPROF_OPTIONS options:"
             echo "    --verbose"
             echo "    --barrier"
@@ -25,9 +30,17 @@ if [ "$#" -ne "0" ] ; then
             exit 0
             ;;
 
+        --options=*)
+            # Remove --options=
+            options=${1#*=}
+
+            # Run mprof
+            MPROF_OPTIONS="--$options" LD_PRELOAD="/usr/local/lib/libmprof.so" ${@:2}
+            ;;
+        
         *)
+            # Run mprof
+            LD_PRELOAD="/usr/local/lib/libmprof.so" ${@}
             ;;
     esac
 fi
-
-LD_PRELOAD="/usr/local/lib/libmprof.so" $@

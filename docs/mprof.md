@@ -14,18 +14,21 @@ mprof - MPI Profiler
 
 **mprof** *[MPI COMMAND LINE]*...
 
-`MPROF_OPTIONS="[OPTION]"` **mprof** *[MPI COMMAND LINE]*...
+*`MPROF_OPTIONS="[OPTION]"`* **mprof** *[MPI COMMAND LINE]*...
 
-**mprof** `[-v|--version]`
+**mprof** *`--options=[OPTION]`* *[MPI COMMAND LINE]*...
 
-**mprof** `[-h|--help]`
+**mprof** [*`-v`*|*`-h`*|*`-l`*]
 
-**mprof** `[-l|--list]`
+**mprof** [*`--version`*|*`--help`*|*`--list`*]
+
 
 # DESCRIPTION
 
 **mprof** is a profiler tool, that profile *MPI* application. Currently, the
-profiling work only in full *MPI* applicatin because *it is not thread safe*.
+profiling work only in full *MPI* applicatin because *it is NOT thread safe*.
+
+Note that **mprof** must be before your *mpi command line*.
 
 # GENERAL OPTIONS
 
@@ -37,6 +40,10 @@ profiling work only in full *MPI* applicatin because *it is not thread safe*.
 
 `-l, --list`
 : Display the list of environment variable options.
+
+`--options=...`
+: Allow user to put environment variable options directly in the command
+  line. Note that you must **remove** hyphen `--`.
 
 # ENVIRONMENT VARIABLE
 
@@ -65,6 +72,10 @@ put this list of options:
 
 `MPROF_OPTIONS="--finalize" mprof mpiexec -np 4 ./a.out`
 : Display in addition when each processus call *MPI_Finalize*.
+
+`mprof --options=finalize mpiexec -np 4 ./a.out`
+: Same as above but we use the command line option to specify the value of
+  environment variable.
 
 # RETURN
 

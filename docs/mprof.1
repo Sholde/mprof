@@ -9,20 +9,26 @@ mprof - MPI Profiler
 .PP
 \f[B]mprof\f[R] \f[I][MPI COMMAND LINE]\f[R]\&...
 .PP
-\f[C]MPROF_OPTIONS=\[dq][OPTION]\[dq]\f[R] \f[B]mprof\f[R] \f[I][MPI
+\f[I]\f[CI]MPROF_OPTIONS=\[dq][OPTION]\[dq]\f[I]\f[R] \f[B]mprof\f[R]
+\f[I][MPI COMMAND LINE]\f[R]\&...
+.PP
+\f[B]mprof\f[R] \f[I]\f[CI]--options=[OPTION]\f[I]\f[R] \f[I][MPI
 COMMAND LINE]\f[R]\&...
 .PP
-\f[B]mprof\f[R] \f[C][-v|--version]\f[R]
+\f[B]mprof\f[R]
+[\f[I]\f[CI]-v\f[I]\f[R]|\f[I]\f[CI]-h\f[I]\f[R]|\f[I]\f[CI]-l\f[I]\f[R]]
 .PP
-\f[B]mprof\f[R] \f[C][-h|--help]\f[R]
-.PP
-\f[B]mprof\f[R] \f[C][-l|--list]\f[R]
+\f[B]mprof\f[R]
+[\f[I]\f[CI]--version\f[I]\f[R]|\f[I]\f[CI]--help\f[I]\f[R]|\f[I]\f[CI]--list\f[I]\f[R]]
 .SH DESCRIPTION
 .PP
 \f[B]mprof\f[R] is a profiler tool, that profile \f[I]MPI\f[R]
 application.
 Currently, the profiling work only in full \f[I]MPI\f[R] applicatin
-because \f[I]it is not thread safe\f[R].
+because \f[I]it is NOT thread safe\f[R].
+.PP
+Note that \f[B]mprof\f[R] must be before your \f[I]mpi command
+line\f[R].
 .SH GENERAL OPTIONS
 .TP
 \f[B]\f[CB]-v, --version\f[B]\f[R]
@@ -33,6 +39,11 @@ Display a friendly help message.
 .TP
 \f[B]\f[CB]-l, --list\f[B]\f[R]
 Display the list of environment variable options.
+.TP
+\f[B]\f[CB]--options=...\f[B]\f[R]
+Allow user to put environment variable options directly in the command
+line.
+Note that you must \f[B]remove\f[R] hyphen \f[C]--\f[R].
 .SH ENVIRONMENT VARIABLE
 .PP
 \f[B]mprof\f[R] read the \f[I]environment variable\f[R] nammed
@@ -59,6 +70,10 @@ Run the profiling in your application \f[I]a.out\f[R].
 .TP
 \f[B]\f[CB]MPROF_OPTIONS=\[dq]--finalize\[dq] mprof mpiexec -np 4 ./a.out\f[B]\f[R]
 Display in addition when each processus call \f[I]MPI_Finalize\f[R].
+.TP
+\f[B]\f[CB]mprof --options=finalize mpiexec -np 4 ./a.out\f[B]\f[R]
+Same as above but we use the command line option to specify the value of
+environment variable.
 .SH RETURN
 .PP
 Return \f[I]0\f[R] on success.

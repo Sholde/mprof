@@ -2,17 +2,21 @@
 #+AUTHOR: Sholde
 #+DATE: April 2021
 
-*MPI Profiler* (alias mprof) is a tool to profile *MPI* function. It use an
-*interposition library*, nammed *libmprof.so*. A wrapper is also provided, nammed
+*MPI Profiler* (alias mprof) is a tool to profile *MPI* functions. It uses an
+*interposition library*, named *libmprof.so*. A wrapper is also provided, named
 *mprof*.
 
 * Disclaimer
 
-  This tool profile *only MPI_COMM_WORLD communication* (other communication
-  will work but not profiled) and it is not currently *thread safe*.
+  This tool profiles *only MPI_COMM_WORLD communication* (others communication
+  will work but not profiled) and it is NOT currently *thread safe*.
 
-  Therefore, we recommend you to run this tool only with full *MPI* application
+  Therefore, we recommend you to run this tool only with full *MPI* applications
   and with only *MPI_COMM_WORLD* communicator.
+
+  Also, we assume that your code following the few *MPI rules*:
+  - you don't call 2 times or more *MPI_Init* or *MPI_Finalize*
+  - *MPI_Init* and *MPI_Finalize* should wrap almost all your code
 
 * Dependencies
 
@@ -22,12 +26,11 @@
   - make
   - MPI library (any vesrion)
   - coreutils (install)
-  - pandoc (for manpage)
 
 ** Example of installation on Arch Linux
 
    #+BEGIN_SRC shell
-$ sudo pacman -S --needed gcc make openmpi coreutils pandoc
+$ sudo pacman -S --needed gcc make openmpi coreutils
    #+END_SRC
 
 * Installation
@@ -50,10 +53,20 @@ or
 $ mprof mpirun -np 4 ./a.out
   #+END_SRC
 
+** List of options
+
+   *mprof* provides different command line options:
+   - ~-v, --version~ print the current version
+   - ~-h, --help~ print a friendly help message
+   - ~-l, --list~ print the list of environment variable options
+   - ~--options=...~ allow you to put environment variable options directly in the command
+   line. Note that you must *remove* hyphen ~--~.
+
+
 * Environment variable
 
-   *mprof* allow you to specify in a environment variable options, nammed
-   *MPROF_OPTIONS*.
+   *mprof* allows you to specify different options in an environment variable,
+   nammed *MPROF_OPTIONS*.
 
 ** List of options
 
@@ -67,7 +80,7 @@ $ mprof mpirun -np 4 ./a.out
 ** Example of usage with deadlock
 
    Here it is a code where only the *process 0* call *MPI_Barrier* and others
-   finish.
+   finished.
 
    #+BEGIN_SRC shell
 $ MPROF_OPTIONS="--finalize" mprof mpirun -np 4 ./lbm
