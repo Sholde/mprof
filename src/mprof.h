@@ -5,6 +5,10 @@
 #define MPROF_ENV "MPROF_OPTIONS"
 #define SPACE_MSG "        "
 
+//
+static unsigned long long __count_mpi_call = 0;
+static unsigned long long __count_mpi_call_local = 0;
+
 // Store MPI variable
 static int __real_size = -1;
 static int __real_rank = -1;
