@@ -46,12 +46,21 @@ if [ "${#}" -ne "0" ] ; then
         --summary=*)
             # Remove --summary=
             process_id=${1#*=}
-            file=mprof_${process_id}.summary
-            
-            if [ -f ${file} ] ; then
-                cat ${file}
+
+            if [ "${process_id}" == "all" ] ; then
+                if [ -f mprof_0.summary ] ; then
+                    cat mprof_*.summary
+                else
+                    echo "Sorry, no summary file (need at least the summary of process 0 to invoke all)"
+                fi
             else
-                echo "Sorry, the summary of process ${process_id} is NOT availabe"
+                file=mprof_${process_id}.summary
+                
+                if [ -f ${file} ] ; then
+                    cat ${file}
+                else
+                    echo "Sorry, the summary of process ${process_id} is NOT availabe"
+                fi
             fi
             
             exit 0
