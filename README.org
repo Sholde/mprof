@@ -59,10 +59,11 @@ $ mprof mpirun -np 4 ./a.out
    - ~-v, --version~ print the current version
    - ~-h, --help~ print a friendly help message
    - ~-l, --list~ print the list of environment variable options
-   - ~--options=...~ allow you to put environment variable options directly in the command
-   line. Note that you must *remove* hyphen ~--~.
+   - ~--options=...~ allow you to put environment variable options directly in
+     the command line. Note that you must *remove* hyphen ~--~.
    - ~--clean~ clean all *mprof* files.
-
+   - ~--summary=PROCESS_ID~ print the file that contain the summary of process
+     *PROCESS_ID*
 
 * Environment variable
 

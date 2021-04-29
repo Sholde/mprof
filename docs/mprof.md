@@ -20,8 +20,9 @@ mprof - MPI Profiler
 
 **mprof** [*`-v`*|*`-h`*|*`-l`*]
 
-**mprof** [*`--version`*|*`--help`*|*`--list`*|*`clean`*]
+**mprof** [*`--version`*|*`--help`*|*`--list`*|*`--clean`*]
 
+**mprof** *`--summary=PROCESS_ID`*
 
 # DESCRIPTION
 
@@ -47,6 +48,9 @@ Note that **mprof** must be before your *mpi command line*.
   
 `--clean`
 : Clean all *mprof* files.
+
+`--summary=PROCESS_ID`
+: print the file that contain the summary of process *PROCESS_ID*
 
 # ENVIRONMENT VARIABLE
 

@@ -6,10 +6,12 @@ if [ "${#}" -ne "0" ] ; then
         -h | --help)
             # Print help
             echo "This is the help of mprof"
-            echo "  -v, --version  Display the version"
-            echo "  -h, --help     Display this help"
-            echo "  -l, --list     Display the list of environment variable options"
-            echo "  --options=...  Allow users to put environment variable options directly in the command line. Note that you must *remove* hyphen --."
+            echo "  -v, --version         Display the version"
+            echo "  -h, --help            Display this help"
+            echo "  -l, --list            Display the list of environment variable options"
+            echo "  --options=...         Allow users to put environment variable options directly in the command line. Note that you must *remove* hyphen --."
+            echo "  --summary=PROCESS_ID  Display the file that contain the summary of process PROCESS_ID"
+
             exit 0
             ;;
 
@@ -17,6 +19,7 @@ if [ "${#}" -ne "0" ] ; then
             # Print version
             echo "mprof (MPROF) 0.0.1"
             echo "GNU General Public License v3.0"
+
             exit 0
             ;;
 
@@ -28,13 +31,29 @@ if [ "${#}" -ne "0" ] ; then
             echo "    --init"
             echo "    --finalize"
             echo "    --profile"
+
             exit 0
             ;;
 
         --clean)
-            for suffix in out profile ; do
-                rm -Rf mprof_[0-9]*.$suffix
+            for suffix in summary out profile ; do
+                rm -Rf mprof_[0-9]*.${suffix}
             done
+
+            exit 0
+            ;;
+
+        --summary=*)
+            # Remove --summary=
+            process_id=${1#*=}
+            file=mprof_${process_id}.summary
+            
+            if [ -f ${file} ] ; then
+                cat ${file}
+            else
+                echo "Sorry, the summary of process ${process_id} is NOT availabe"
+            fi
+            
             exit 0
             ;;
 
